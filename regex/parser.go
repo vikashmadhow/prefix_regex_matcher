@@ -1,6 +1,8 @@
 package regex
 
-import "math"
+import (
+	"math"
+)
 
 type CompiledRegex struct {
 	Regex Regex
@@ -8,34 +10,12 @@ type CompiledRegex struct {
 	Dfa   *automata
 }
 
-type Matcher struct {
-	compiled *CompiledRegex
-	state    state
-}
-
-func (compiled *CompiledRegex) Matcher() Matcher {
-	return Matcher{compiled, compiled.Dfa.start}
-}
-
-func (matcher *Matcher) Reset() {
-	matcher.state = matcher.compiled.Dfa.start
-}
-
-func (matcher *Matcher) MatchNext(r rune) bool {
-	return false
-}
-
 // NewRegex creates a new regular expression from the input
 func NewRegex(input string) CompiledRegex {
 	parser := parser{[]rune(input), 0}
 	r := parser.regex()
-
 	n := r.nfa()
-	//println(n.toGraphViz(input))
-
 	d := dfa(n)
-	//println(d.toGraphViz(input))
-
 	return CompiledRegex{r, n, d}
 }
 
