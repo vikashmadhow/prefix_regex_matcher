@@ -1,0 +1,51 @@
+package main
+
+import (
+	"github.com/vikashmadhow/prefix_regex_matcher/regex"
+)
+
+func main() {
+	var r regex.CompiledRegex
+
+	r = regex.NewRegex("a")
+	println(r.Regex.Pattern())
+
+	r = regex.NewRegex("a|b")
+	println(r.Regex.Pattern())
+
+	r = regex.NewRegex("ab|cd")
+	println(r.Regex.Pattern())
+
+	r = regex.NewRegex("(a|b)(c|d)")
+	println(r.Regex.Pattern())
+
+	r = regex.NewRegex("a|bc")
+	println(r.Regex.Pattern())
+
+	r = regex.NewRegex("a*")
+	println(r.Regex.Pattern())
+
+	r = regex.NewRegex("a*|(bc)*")
+	println(r.Regex.Pattern())
+
+	r = regex.NewRegex("a+|(abc)*")
+	println(r.Regex.Pattern())
+
+	r = regex.NewRegex("x*(fc)*")
+	println(r.Regex.Pattern())
+
+	r = regex.NewRegex("ab(cd|ef)?|e(fc)*\\*[a-z0-9ABC---]+")
+	println(r.Regex.Pattern())
+
+	//s := "abcd\xbd\xb2=\xbc\u2318日本語"
+	//fmt.Println(s)
+	//for i, c := range s {
+	//	println(string(c), " is at position ", strconv.Itoa(i))
+	//}
+	//fmt.Println("---")
+	//
+	//ru := []rune(s)
+	//for i, c := range ru {
+	//	println(string(c), " is at position ", strconv.Itoa(i))
+	//}
+}
