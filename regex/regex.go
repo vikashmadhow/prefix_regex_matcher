@@ -65,18 +65,18 @@ type group struct {
 //-----------------Regex interface methods------------//
 
 func (c *choice) Pattern() string {
-	//return c.left.Pattern() + "|" + c.right.Pattern()
-	return "Or(" + c.left.Pattern() + ", " + c.right.Pattern() + ")"
+	return c.left.Pattern() + "|" + c.right.Pattern()
+	//return "Or(" + c.left.Pattern() + ", " + c.right.Pattern() + ")"
 }
 
 // automata constructs a finite automaton for the choice (union) of two regular expressions.
 //
-//	     left
-//	    ∧   \
-//	   /     v
-//	start    final
-//	   \     ∧
-//	    v   /
+//	    left
+//	    ∧  \
+//	   /    v
+//	start   final
+//	   \    ∧
+//	    v  /
 //	    right
 func (c *choice) nfa() *automata {
 	a := automata{
@@ -99,18 +99,19 @@ func (c *choice) nfa() *automata {
 }
 
 func (s *sequence) Pattern() string {
-	//ret := ""
-	ret := "Seq("
+	ret := ""
+	//ret := "Seq("
 	first := true
 	for _, re := range s.sequence {
 		if first {
 			first = false
 		} else {
-			ret += ", "
+			//ret += ", "
+			ret += ""
 		}
 		ret += re.Pattern()
 	}
-	ret += ")"
+	//ret += ")"
 	return ret
 }
 
@@ -142,8 +143,8 @@ func (s *sequence) nfa() *automata {
 }
 
 func (r *zeroOrOne) Pattern() string {
-	//return r.opt.Pattern() + "?"
-	return "?(" + r.opt.Pattern() + ")"
+	return r.opt.Pattern() + "?"
+	//return "?(" + r.opt.Pattern() + ")"
 }
 
 // automata constructs and returns an NFA for an optional subpattern.
@@ -178,8 +179,8 @@ func addTransitions(target *automata, from state, to map[char]state) *automata {
 }
 
 func (r *zeroOrMore) Pattern() string {
-	//return r.repeat.Pattern() + "*"
-	return "*(" + r.repeat.Pattern() + ")"
+	return r.repeat.Pattern() + "*"
+	//return "*(" + r.repeat.Pattern() + ")"
 }
 
 // automata generates a finite automaton for a zero-or-more repetition (Kleene closure) of the pattern.
@@ -199,8 +200,8 @@ func (r *zeroOrMore) nfa() *automata {
 }
 
 func (r *oneOrMore) Pattern() string {
-	//return r.repeat.Pattern() + "+"
-	return "+(" + r.repeat.Pattern() + ")"
+	return r.repeat.Pattern() + "+"
+	//return "+(" + r.repeat.Pattern() + ")"
 }
 
 // automata generates a finite automaton for a zero-or-more repetition (Kleene closure) of the pattern.
@@ -216,8 +217,8 @@ func (r *oneOrMore) nfa() *automata {
 }
 
 func (r *group) Pattern() string {
-	//return "(" + r.re.Pattern() + ")"
-	return "Grp(" + r.re.Pattern() + ")"
+	return "(" + r.re.Pattern() + ")"
+	//return "Grp(" + r.re.Pattern() + ")"
 }
 
 func (r *group) nfa() *automata {

@@ -1,6 +1,7 @@
 package regex
 
 import (
+	"container/list"
 	"math"
 )
 
@@ -104,19 +105,23 @@ func (r *parser) ch() Regex {
 			exclude = true
 		}
 
-		var charSets []char
+		//var charSets []char
+		charSets := list.New()
 		for r.hasMore() && r.peek() != ']' {
 			from := r.next()
 			if r.peek() == '-' {
 				r.next()
 				if r.hasMore() && r.peek() != ']' {
 					to := r.next()
-					charSets = append(charSets, &charRange{from, to})
+					//charSets = append(charSets, &charRange{from, to})
+					charSets.PushBack(charRange{from, to})
 				} else {
-					charSets = append(charSets, &charRange{from, math.MaxUint8})
+					//charSets = append(charSets, &charRange{from, math.MaxUint8})
+					charSets.PushBack(charRange{from, math.MaxUint8})
 				}
 			} else {
-				charSets = append(charSets, &singleChar{from})
+				//charSets = append(charSets, &singleChar{from})
+				charSets.PushBack(singleChar{from})
 			}
 		}
 		// lenient parsing: don't break if no closing square bracket, read to the end
