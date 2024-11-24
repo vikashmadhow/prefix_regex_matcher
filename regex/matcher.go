@@ -27,31 +27,31 @@ type Matcher struct {
 	state     state
 }
 
-func (compiled *CompiledRegex) Matcher() *Matcher {
-	return &Matcher{Start, "", compiled, compiled.Dfa.start}
+func (r *CompiledRegex) Matcher() *Matcher {
+	return &Matcher{Start, "", r, r.Dfa.start}
 }
 
-func (matcher *Matcher) Reset() {
-	matcher.LastMatch = Start
-	matcher.Matched = ""
-	matcher.state = matcher.compiled.Dfa.start
+func (m *Matcher) Reset() {
+	m.LastMatch = Start
+	m.Matched = ""
+	m.state = m.compiled.Dfa.start
 }
 
-func (matcher *Matcher) MatchNext(r rune) MatchType {
-	trans := matcher.compiled.Dfa.trans[matcher.state]
+func (m *Matcher) MatchNext(r rune) MatchType {
+	trans := m.compiled.Dfa.trans[m.state]
 	for c, t := range trans {
 		if c.match(r) {
-			matcher.state = t
-			if slices.Index(matcher.compiled.Dfa.final, t) == -1 {
-				matcher.LastMatch = PartialMatch
-				matcher.Matched += string(r)
+			m.state = t
+			if slices.Index(m.compiled.Dfa.final, t) == -1 {
+				m.LastMatch = PartialMatch
+				m.Matched += string(r)
 			} else {
-				matcher.LastMatch = FullMatch
-				matcher.Matched += string(r)
+				m.LastMatch = FullMatch
+				m.Matched += string(r)
 			}
-			return matcher.LastMatch
+			return m.LastMatch
 		}
 	}
-	matcher.LastMatch = NoMatch
-	return matcher.LastMatch
+	m.LastMatch = NoMatch
+	return m.LastMatch
 }

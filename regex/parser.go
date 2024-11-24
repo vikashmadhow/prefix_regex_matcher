@@ -3,22 +3,10 @@ package regex
 import (
 	"container/list"
 	"math"
+	"strconv"
+	"strings"
+	"sync/atomic"
 )
-
-type CompiledRegex struct {
-	Regex Regex
-	Nfa   *automata
-	Dfa   *automata
-}
-
-// NewRegex creates a new regular expression from the input
-func NewRegex(input string) CompiledRegex {
-	parser := parser{[]rune(input), 0}
-	r := parser.regex()
-	n := r.nfa()
-	d := dfa(n)
-	return CompiledRegex{r, n, d}
-}
 
 // ----------------Regex top-down parsing----------------//
 type parser struct {
@@ -76,6 +64,58 @@ func (r *parser) factor() Regex {
 		case '?':
 			r.next()
 			return &zeroOrOne{base}
+		case '{':
+			r.next()
+			m := ""
+			n := ""
+			first := true
+			if r.hasMore() {
+				for r.hasMore() {
+					c := r.next()
+					if c == '}' {
+						break
+					}
+					if c == ',' {
+						first = false
+					} else if first {
+						m += string(c)
+					} else {
+						n += string(c)
+					}
+				}
+				var mi, ma int32
+				if len(strings.TrimSpace(m)) == 0 {
+					mi = 0
+				} else {
+					x, err := strconv.Atoi(m)
+					if err != nil {
+						mi = 0
+					} else {
+						mi = int32(x)
+					}
+				}
+				if len(strings.TrimSpace(n)) == 0 {
+					ma = math.MaxUint8
+				} else {
+					x, err := strconv.Atoi(n)
+					if err != nil {
+						ma = math.MaxUint8
+					} else {
+						ma = int32(x)
+					}
+				}
+				if first {
+					ma = mi
+				}
+				mi = min(math.MaxUint8, max(0, mi))
+				ma = min(math.MaxUint8, max(0, ma))
+				if mi > ma {
+					ma = atomic.SwapInt32(&mi, ma)
+				}
+				return &multiple{base, uint8(mi), uint8(ma)}
+			} else {
+				return &singleChar{'{'}
+			}
 		}
 	}
 	return base
@@ -105,7 +145,6 @@ func (r *parser) ch() Regex {
 			exclude = true
 		}
 
-		//var charSets []char
 		charSets := list.New()
 		for r.hasMore() && r.peek() != ']' {
 			from := r.next()
@@ -113,14 +152,11 @@ func (r *parser) ch() Regex {
 				r.next()
 				if r.hasMore() && r.peek() != ']' {
 					to := r.next()
-					//charSets = append(charSets, &charRange{from, to})
 					charSets.PushBack(charRange{from, to})
 				} else {
-					//charSets = append(charSets, &charRange{from, math.MaxUint8})
 					charSets.PushBack(charRange{from, math.MaxUint8})
 				}
 			} else {
-				//charSets = append(charSets, &singleChar{from})
 				charSets.PushBack(singleChar{from})
 			}
 		}

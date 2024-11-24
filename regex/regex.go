@@ -25,10 +25,41 @@
 //	       | ch
 package regex
 
+import (
+	"math"
+	"slices"
+	"strconv"
+)
+
 // Regex is the base visible interface of regular expressions
 type Regex interface {
 	Pattern() string
 	nfa() *automata
+}
+
+type CompiledRegex struct {
+	Regex Regex
+	Nfa   *automata
+	Dfa   *automata
+}
+
+// NewRegex creates a new regular expression from the input
+func NewRegex(input string) CompiledRegex {
+	parser := parser{[]rune(input), 0}
+	r := parser.regex()
+	n := r.nfa()
+	d := dfa(n)
+	return CompiledRegex{r, n, d}
+}
+
+func (r *CompiledRegex) match(input string) bool {
+	m := r.Matcher()
+	for _, c := range input {
+		if m.MatchNext(c) == NoMatch {
+			return false
+		}
+	}
+	return slices.Index(r.Dfa.final, m.state) != -1
 }
 
 // choice represents the regex | regex rule
@@ -55,6 +86,12 @@ type zeroOrMore struct {
 // oneOrMore is for positive closure (re+)
 type oneOrMore struct {
 	repeat Regex
+}
+
+// oneOrMore is for positive closure (re+)
+type multiple struct {
+	repeat   Regex
+	min, max uint8
 }
 
 // group is for grouping regular expressions inside brackets, i.e., (re)
@@ -101,14 +138,14 @@ func (c *choice) nfa() *automata {
 func (s *sequence) Pattern() string {
 	ret := ""
 	//ret := "Seq("
-	first := true
+	//first := true
 	for _, re := range s.sequence {
-		if first {
-			first = false
-		} else {
-			//ret += ", "
-			ret += ""
-		}
+		//if first {
+		//	first = false
+		//} else {
+		//ret += ", "
+		//	ret += ""
+		//}
 		ret += re.Pattern()
 	}
 	//ret += ")"
@@ -139,6 +176,9 @@ func (s *sequence) nfa() *automata {
 		}
 		a.final = reAutomata.final
 	}
+	if first {
+		a.final[0] = a.start
+	}
 	return &a
 }
 
@@ -157,25 +197,6 @@ func (r *zeroOrOne) nfa() *automata {
 	opt := r.opt.nfa()
 	addTransitions(opt, opt.start, map[char]state{&empty{}: opt.final[0]})
 	return opt
-}
-
-func merge(target *automata, source *automata) *automata {
-	for k, v := range source.trans {
-		target.trans[k] = v
-	}
-	return target
-}
-
-func addTransitions(target *automata, from state, to map[char]state) *automata {
-	existing, ok := target.trans[from]
-	if !ok {
-		target.trans[from] = to
-	} else {
-		for k, v := range to {
-			existing[k] = v
-		}
-	}
-	return target
 }
 
 func (r *zeroOrMore) Pattern() string {
@@ -204,7 +225,7 @@ func (r *oneOrMore) Pattern() string {
 	//return "+(" + r.repeat.Pattern() + ")"
 }
 
-// automata generates a finite automaton for a zero-or-more repetition (Kleene closure) of the pattern.
+// automata generates a finite automaton for a one-or-more repetition of the pattern.
 //
 //	start --> ... --> final
 //	 ^                  /
@@ -216,6 +237,80 @@ func (r *oneOrMore) nfa() *automata {
 	return repeat
 }
 
+func (r *multiple) Pattern() string {
+	s := r.repeat.Pattern() + "{"
+	if r.min == r.max {
+		s += strconv.Itoa(int(r.min))
+	} else {
+		if r.min != 0 {
+			s += strconv.Itoa(int(r.min))
+		}
+		s += ","
+		if r.max != math.MaxUint8 {
+			s += strconv.Itoa(int(r.max))
+		}
+	}
+	return s + "}"
+	//return "*(" + r.repeat.Pattern() + ")"
+}
+
+// automata generates a finite automaton for a range (m,n) repetition of the pattern.
+//
+//	                              ___________________
+//							     /   _______________ \
+//		    			  	    /   /           ___ \ \
+//	         +-m times--+      /   /           /   \ \ \
+//	         |          |     ^   ^           ^     v v v
+//	start -> r -> ...-> r -> r -> r -> ... -> r ->  final
+//	                         |                |
+//	                         +---n-m times----+
+func (r *multiple) nfa() *automata {
+	a := &automata{
+		trans: make(transitions),
+		start: &stateObj{},
+		final: []state{&stateObj{}},
+	}
+	first := true
+	if r.min > 0 {
+		s := &sequence{slices.Repeat([]Regex{r.repeat}, int(r.min))}
+		a = s.nfa()
+		first = false
+	}
+	if r.max > r.min {
+		if r.max == 255 {
+			repeat := r.repeat.nfa()
+			merge(a, repeat)
+			addTransitions(a, repeat.start, map[char]state{&empty{}: repeat.final[0]})
+			addTransitions(a, repeat.final[0], map[char]state{&empty{}: repeat.start})
+			if first {
+				a.start = repeat.start
+				first = false
+			} else {
+				addTransitions(a, a.final[0], map[char]state{&empty{}: repeat.start})
+			}
+			a.final = repeat.final
+
+		} else {
+			for i := r.min; i < r.max; i++ {
+				repeat := r.repeat.nfa()
+				merge(a, repeat)
+				addTransitions(a, repeat.start, map[char]state{&empty{}: repeat.final[0]})
+				if first {
+					a.start = repeat.start
+					first = false
+				} else {
+					addTransitions(a, a.final[0], map[char]state{&empty{}: repeat.start})
+				}
+				a.final = repeat.final
+			}
+		}
+	}
+	if first {
+		a.final[0] = a.start
+	}
+	return a
+}
+
 func (r *group) Pattern() string {
 	return "(" + r.re.Pattern() + ")"
 	//return "Grp(" + r.re.Pattern() + ")"
@@ -223,4 +318,23 @@ func (r *group) Pattern() string {
 
 func (r *group) nfa() *automata {
 	return r.re.nfa()
+}
+
+func merge(target *automata, source *automata) *automata {
+	for k, v := range source.trans {
+		target.trans[k] = v
+	}
+	return target
+}
+
+func addTransitions(target *automata, from state, to map[char]state) *automata {
+	existing, ok := target.trans[from]
+	if !ok {
+		target.trans[from] = to
+	} else {
+		for k, v := range to {
+			existing[k] = v
+		}
+	}
+	return target
 }

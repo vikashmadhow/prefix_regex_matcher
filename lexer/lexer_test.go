@@ -15,7 +15,7 @@ func TestLexer(t *testing.T) {
 	)
 
 	var tokens []Token
-	for token := range l.lex("let x = 1000") {
+	for token := range l.lex("let x =  1000") {
 		tokens = append(tokens, token)
 	}
 
@@ -25,7 +25,7 @@ func TestLexer(t *testing.T) {
 		{"ID", "x", 0, 0},
 		{"SPC", " ", 0, 0},
 		{"EQ", "=", 0, 0},
-		{"SPC", " ", 0, 0},
+		{"SPC", "  ", 0, 0},
 		{"INT", "1000", 0, 0},
 	}) {
 		t.Error("Invalid output", tokens)
