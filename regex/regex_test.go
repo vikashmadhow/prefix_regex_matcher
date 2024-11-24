@@ -272,3 +272,136 @@ func TestRepeatNoLowerLimit(t *testing.T) {
 		t.Error("'(ab|ac){,3}' matched 'abacababac'")
 	}
 }
+
+func TestDigits(t *testing.T) {
+	r := NewRegex("\\d{3,5}")
+	if !r.match("569") {
+		t.Error("'\\d{3,5}' did not match '569'")
+	}
+	if !r.match("5697") {
+		t.Error("'\\d{3,5}' did not match '5697'")
+	}
+	if !r.match("56975") {
+		t.Error("'\\d{3,5}' did not match '56975'")
+	}
+	if r.match("569751") {
+		t.Error("'\\d{3,5}' matched '569751'")
+	}
+	if r.match("5bc") {
+		t.Error("'\\d{3,5}' matched '5bc'")
+	}
+}
+
+func TestNonDigits(t *testing.T) {
+	r := NewRegex("\\D{3,5}")
+	if !r.match("abF") {
+		t.Error("'\\D{3,5}' did not match 'abF'")
+	}
+	if !r.match("abFs") {
+		t.Error("'\\D{3,5}' did not match 'abFs'")
+	}
+	if !r.match("abFs?") {
+		t.Error("'\\D{3,5}' did not match 'abFs?'")
+	}
+	if r.match("abFs?;") {
+		t.Error("'\\D{3,5}' matched 'abFs?;'")
+	}
+	if r.match("5bc") {
+		t.Error("'\\D{3,5}' matched '5bc'")
+	}
+}
+
+func TestSpaces(t *testing.T) {
+	r := NewRegex("\\s{3,5}")
+	if !r.match(" 	 ") {
+		t.Error("'\\s{3,5}' did not match ' 	 '")
+	}
+	if !r.match("  		") {
+		t.Error("'\\s{3,5}' did not match '  		'")
+	}
+	if !r.match("  		 ") {
+		t.Error("'\\s{3,5}' did not match '  		 '")
+	}
+	if r.match("  		  ") {
+		t.Error("'\\s{3,5}' matched '  		  '")
+	}
+	if r.match("5  ") {
+		t.Error("'\\s{3,5}' matched '5  '")
+	}
+}
+
+func TestNonSpaces(t *testing.T) {
+	r := NewRegex("\\S{3,5}")
+	if !r.match("abc") {
+		t.Error("'\\S{3,5}' did not match 'abc'")
+	}
+	if !r.match("abcd") {
+		t.Error("'\\S{3,5}' did not match 'abcd'")
+	}
+	if !r.match("abcde") {
+		t.Error("'\\S{3,5}' did not match 'abcde'")
+	}
+	if r.match("abcdef") {
+		t.Error("'\\S{3,5}' matched 'abcdef'")
+	}
+	if r.match("   ") {
+		t.Error("'\\S{3,5}' matched '   '")
+	}
+}
+
+func TestWords(t *testing.T) {
+	r := NewRegex("\\w{3,5}")
+	if !r.match("ab0") {
+		t.Error("'\\w{3,5}' did not match 'ab0'")
+	}
+	if !r.match("ab01") {
+		t.Error("'\\w{3,5}' did not match 'ab01'")
+	}
+	if !r.match("abc01") {
+		t.Error("'\\w{3,5}' did not match 'abc01'")
+	}
+	if r.match("abc012") {
+		t.Error("'\\w{3,5}' matched 'abc012'")
+	}
+	if r.match("?bc") {
+		t.Error("'\\w{3,5}' matched '?bc'")
+	}
+}
+
+func TestNonWords(t *testing.T) {
+	r := NewRegex("\\W{3,5}")
+	if !r.match("<>?") {
+		t.Error("'\\W{3,5}' did not match '<>?'")
+	}
+	if !r.match("<>?,") {
+		t.Error("'\\W{3,5}' did not match '<>?,'")
+	}
+	if !r.match("<>?,.") {
+		t.Error("'\\W{3,5}' did not match '<>?,.'")
+	}
+	if r.match("<>?,./") {
+		t.Error("'\\W{3,5}' matched '<>?,./'")
+	}
+	if r.match("A<>") {
+		t.Error("'\\W{3,5}' matched 'A<>'")
+	}
+}
+
+func TestDot(t *testing.T) {
+	r := NewRegex(".{3,5}")
+	if !r.match("^*k") {
+		t.Error("'.{3,5}' did not match '^*k'")
+	}
+	if !r.match("^*k)") {
+		t.Error("'.{3,5}' did not match '^*k'")
+	}
+	if !r.match("^*k)$") {
+		t.Error("'.{3,5}' did not match '^*k)$'")
+	}
+	if r.match("^*k)$d") {
+		t.Error("'.{3,5}' matched '^*k)$d'")
+	}
+	if r.match("") {
+		t.Error("'.{3,5}' matched ''")
+	}
+}

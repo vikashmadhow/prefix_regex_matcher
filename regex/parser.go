@@ -170,11 +170,52 @@ func (r *parser) ch() Regex {
 		r.next()
 		// lenient parsing: single backlash at the end is interpreted as escaping itself
 		if r.hasMore() {
-			return &singleChar{r.next()}
+			switch c := r.next(); c {
+			case 'd':
+				return charRange{'0', '9'}
+			case 'D':
+				cs := list.New()
+				cs.PushBack(charRange{'0', '9'})
+				return &characterSet{true, cs}
+			case 's':
+				cs := list.New()
+				cs.PushBack(singleChar{' '})
+				cs.PushBack(singleChar{'\t'})
+				cs.PushBack(singleChar{'\n'})
+				cs.PushBack(singleChar{'\f'})
+				cs.PushBack(singleChar{'\r'})
+				return &characterSet{false, cs}
+			case 'S':
+				cs := list.New()
+				cs.PushBack(singleChar{' '})
+				cs.PushBack(singleChar{'\t'})
+				cs.PushBack(singleChar{'\n'})
+				cs.PushBack(singleChar{'\f'})
+				cs.PushBack(singleChar{'\r'})
+				return &characterSet{true, cs}
+			case 'w':
+				cs := list.New()
+				cs.PushBack(charRange{'0', '9'})
+				cs.PushBack(charRange{'a', 'z'})
+				cs.PushBack(charRange{'A', 'Z'})
+				cs.PushBack(singleChar{'_'})
+				return &characterSet{false, cs}
+			case 'W':
+				cs := list.New()
+				cs.PushBack(charRange{'0', '9'})
+				cs.PushBack(charRange{'a', 'z'})
+				cs.PushBack(charRange{'A', 'Z'})
+				cs.PushBack(singleChar{'_'})
+				return &characterSet{true, cs}
+			default:
+				return &singleChar{r.next()}
+			}
 		} else {
 			return &singleChar{'\\'}
 		}
-
+	} else if r.peek() == '.' {
+		r.next()
+		return &anyChar{}
 	} else {
 		return &singleChar{r.next()}
 	}

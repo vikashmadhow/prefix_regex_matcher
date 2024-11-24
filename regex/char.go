@@ -19,6 +19,8 @@ type char interface {
 
 type empty struct{ _ uint8 }
 
+type anyChar struct{ _ uint8 }
+
 type singleChar struct {
 	char rune
 }
@@ -49,6 +51,24 @@ func (c empty) nfa() *automata {
 
 func (c empty) match(rune) bool {
 	return false
+}
+
+//------------- Any character -------------//
+
+func (c anyChar) Pattern() string {
+	return "."
+}
+
+func (c anyChar) isEmpty() bool {
+	return false
+}
+
+func (c anyChar) nfa() *automata {
+	return charNfa(c)
+}
+
+func (c anyChar) match(rune) bool {
+	return true
 }
 
 //------------- A single character match -------------//
@@ -125,14 +145,21 @@ func (c characterSet) nfa() *automata {
 }
 
 func (c characterSet) match(ch rune) bool {
-	//for _, cs := range c.charSets {
-	for cs := c.charSets.Front(); cs != nil; cs = cs.Next() {
-		if (c.exclude && !cs.Value.(char).match(ch)) ||
-			(!c.exclude && cs.Value.(char).match(ch)) {
-			return true
+	if c.exclude {
+		for cs := c.charSets.Front(); cs != nil; cs = cs.Next() {
+			if cs.Value.(char).match(ch) {
+				return false
+			}
 		}
+		return true
+	} else {
+		for cs := c.charSets.Front(); cs != nil; cs = cs.Next() {
+			if cs.Value.(char).match(ch) {
+				return true
+			}
+		}
+		return false
 	}
-	return false
 }
 
 func charNfa(c char) *automata {
