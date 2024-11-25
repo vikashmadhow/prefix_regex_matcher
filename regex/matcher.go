@@ -1,3 +1,5 @@
+// author: Vikash Madhow (vikash.madhow@gmail.com)
+
 package regex
 
 import "slices"
@@ -23,18 +25,29 @@ const (
 type Matcher struct {
 	LastMatch MatchType
 	Matched   string
+	Groups    map[int]string
 	compiled  *CompiledRegex
 	state     state
 }
 
 func (r *CompiledRegex) Matcher() *Matcher {
-	return &Matcher{Start, "", r, r.Dfa.start}
+	return &Matcher{Start, "", map[int]string{}, r, r.Dfa.start}
 }
 
 func (m *Matcher) Reset() {
 	m.LastMatch = Start
 	m.Matched = ""
+	m.Groups = make(map[int]string)
 	m.state = m.compiled.Dfa.start
+}
+
+func (m *Matcher) Match(input string) bool {
+	for _, c := range input {
+		if m.MatchNext(c) == NoMatch {
+			return false
+		}
+	}
+	return slices.Index(m.compiled.Dfa.final, m.state) != -1
 }
 
 func (m *Matcher) MatchNext(r rune) MatchType {
@@ -49,6 +62,16 @@ func (m *Matcher) MatchNext(r rune) MatchType {
 				m.LastMatch = FullMatch
 				m.Matched += string(r)
 			}
+
+			groups := c.groups()
+			for g := groups.Front(); g != nil; g = g.Next() {
+				_, ok := m.Groups[g.Value.(int)]
+				if !ok {
+					m.Groups[g.Value.(int)] = ""
+				}
+				m.Groups[g.Value.(int)] += string(r)
+			}
+
 			return m.LastMatch
 		}
 	}

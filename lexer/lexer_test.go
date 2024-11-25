@@ -1,3 +1,5 @@
+// author: Vikash Madhow (vikash.madhow@gmail.com)
+
 package lexer
 
 import (

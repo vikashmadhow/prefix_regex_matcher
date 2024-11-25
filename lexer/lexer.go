@@ -1,3 +1,6 @@
+// author: Vikash Madhow (vikash.madhow@gmail.com)
+
+// Package lexer implements a simple fast lexer using the prefix regular expression matcher.
 package lexer
 
 import (

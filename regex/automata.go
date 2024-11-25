@@ -1,12 +1,17 @@
+// author: Vikash Madhow (vikash.madhow@gmail.com)
+
 package regex
 
 import (
+	"container/list"
+	"maps"
 	"reflect"
 	"slices"
 	"strconv"
 )
 
 type stateObj struct{ _ uint8 }
+
 type state *stateObj
 
 type transitions map[state]map[char]state
@@ -35,13 +40,13 @@ func (auto *automata) ToGraphViz(title string) string {
 	}
 	spec += "\t{\n"
 	if slices.Index(auto.final, auto.start) == -1 {
-		spec += "\t\tS [shape=circle color=\"lightblue\" style=filled]\n"
+		spec += "\t\t\"" + nodeNames[auto.start] + "\" [shape=circle color=\"lightblue\" style=filled]\n"
 	}
-	for i, f := range auto.final {
+	for _, f := range auto.final {
 		if f == auto.start {
-			spec += "\t\tF" + strconv.Itoa(i+1) + " [shape=doublecircle color=\"lightblue\" style=filled]\n"
+			spec += "\t\t\"" + nodeNames[f] + "\" [shape=doublecircle color=\"lightblue\" style=filled]\n"
 		} else {
-			spec += "\t\tF" + strconv.Itoa(i+1) + " [shape=doublecircle style=filled]\n"
+			spec += "\t\t\"" + nodeNames[f] + "\" [shape=doublecircle style=filled]\n"
 		}
 	}
 	spec += "\t}\n"
@@ -57,7 +62,7 @@ func (auto *automata) ToGraphViz(title string) string {
 				nodeNames[t] = strconv.Itoa(nodeCount)
 				nodeCount++
 			}
-			spec += "\t\"" + nodeNames[s] + "\" -> \"" + nodeNames[t] + "\" [label=\"" + c.Pattern() + "\"]\n"
+			spec += "\t\"" + nodeNames[s] + "\" -> \"" + nodeNames[t] + "\" [label=\"" + c.Pattern() + ":" + label(c.groups()) + "\"]\n"
 		}
 	}
 	spec += "}"
@@ -88,25 +93,43 @@ func dfa(nfa *automata) *automata {
 		source := find(dfaStates, dfaState)
 
 		// union all outgoing character transitions on any state of the DFA state
-		chars := set[char]{}
+		chars := map[string][]char{}
 		for s := range dfaState {
 			trans := nfa.trans[s]
 			for c := range trans {
 				if !c.isEmpty() {
-					chars[c] = true
+					pattern := c.Pattern()
+					chars[pattern] = append(chars[pattern], c)
 				}
 			}
 		}
 
 		// find reachable set of states for each outgoing character
-		for c := range chars {
+		for _, cs := range chars {
 			reachable = &set[state]{}
-			for s := range dfaState {
-				trans := nfa.trans[s]
-				if t, ok := trans[c]; ok {
-					eClosure(nfa.trans, t, reachable)
+			groups := set[int]{}
+			var combinedChar char = nil
+			for _, c := range cs {
+				if combinedChar == nil {
+					combinedChar = c
+				}
+				for i := c.groups().Front(); i != nil; i = i.Next() {
+					groups[i.Value.(int)] = true
+				}
+				for s := range dfaState {
+					trans := nfa.trans[s]
+					if t, ok := trans[c]; ok {
+						eClosure(nfa.trans, t, reachable)
+					}
 				}
 			}
+
+			union := slices.Sorted(maps.Keys(groups))
+			newGroups := list.New()
+			for _, g := range union {
+				newGroups.PushBack(g)
+			}
+			combinedChar.setGroups(newGroups)
 
 			target := find(dfaStates, *reachable)
 			if target == nil {
@@ -121,7 +144,7 @@ func dfa(nfa *automata) *automata {
 			if !ok {
 				dfa.trans[source] = map[char]state{}
 			}
-			dfa.trans[source][c] = target
+			dfa.trans[source][combinedChar] = target
 		}
 	}
 	return &dfa
@@ -152,4 +175,20 @@ func find(states map[state]set[state], state set[state]) state {
 		}
 	}
 	return nil
+}
+
+func label(groups *list.List) string {
+	s := ""
+	if groups != nil {
+		first := true
+		for g := groups.Front(); g != nil; g = g.Next() {
+			if first {
+				first = false
+			} else {
+				s += ","
+			}
+			s += strconv.Itoa(g.Value.(int))
+		}
+	}
+	return s
 }

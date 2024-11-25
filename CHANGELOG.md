@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.0] - 2024-11-25
+- Numbered capturing groups with group 0 matching whole string and each opening
+  parenthesis `(` starting a new capturing group. Capturing groups can be nested.
+
 ## [0.0.0-20241124] - 2024-11-24
 - Character classes shortcuts (`\d`, `\w`, etc.)
 - Matching any character with `.`.

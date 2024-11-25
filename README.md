@@ -8,15 +8,15 @@ This is then used to build a fast lexer.
 ## Regular expression engine
 The regular expression engine currently supports the following patterns:
 
-| Expression | Meaning                                                                                                              |
-|------------|----------------------------------------------------------------------------------------------------------------------|
-| `x*`       | Zero or more of `x`.                                                                                                 |
-| `x+`       | One or more of `x`.                                                                                                  |
-| `x?`       | Zero or one of `x`.                                                                                                  |
-| `x{m,n}`   | `k` of `x` where `m <= k <= n`. If `m` is not provided it is set to 0. If `n` is not provided it is set to infinity. |
-| `x{m}`     | Same as `x`{m,m}                                                                                                     |
-| `x \| y`   | `x` or `y`.                                                                                                          |
-| `(x)`      | Precedence given to `x`.                                                                                             |
+| Expression  | Meaning                                                                                                                                  |
+|-------------|------------------------------------------------------------------------------------------------------------------------------------------|
+| `x*`        | Zero or more of `x`.                                                                                                                     |
+| `x+`        | One or more of `x`.                                                                                                                      |
+| `x?`        | Zero or one of `x`.                                                                                                                      |
+| `x{m,n}`    | `k` of `x` where `m <= k <= n`. If `m` is not provided it is set to 0. If `n` is not provided it is set to infinity.                     |
+| `x{m}`      | Same as `x`{m,m}                                                                                                                         |
+| `x \| y`    | `x` or `y`.                                                                                                                              |
+| `(x)`       | `x` as a numbered capturing group, starting from 1. Group 0 is reserved for the whole expression. Precedence is also overridden by `()`. |
 
 ### Character and character classes
 | Expression | Meaning                                                                            |

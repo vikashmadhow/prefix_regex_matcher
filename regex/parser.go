@@ -1,3 +1,5 @@
+// author: Vikash Madhow (vikash.madhow@gmail.com)
+
 package regex
 
 import (
@@ -12,6 +14,8 @@ import (
 type parser struct {
 	input    []rune
 	position int
+	group    *int
+	groups   *list.List
 }
 
 func (r *parser) peek() rune {
@@ -112,9 +116,9 @@ func (r *parser) factor() Regex {
 				if mi > ma {
 					ma = atomic.SwapInt32(&mi, ma)
 				}
-				return &multiple{base, uint8(mi), uint8(ma)}
+				return &repeat{base, uint8(mi), uint8(ma)}
 			} else {
-				return &singleChar{'{'}
+				return &singleChar{'{', cp(r.groups)}
 			}
 		}
 	}
@@ -124,18 +128,29 @@ func (r *parser) factor() Regex {
 func (r *parser) base() Regex {
 	if r.peek() == '(' {
 		r.next()
+
+		*r.group++
+		//newGroups := r.groups
+		//newGroups.PushBack(*r.group)
+		r.groups.PushBack(*r.group)
+
 		re := r.regex()
+
+		r.groups.Back()
+		r.groups.Remove(r.groups.Back())
+
 		// lenient parsing: don't break if no closing bracket, read to the end
 		if r.hasMore() {
 			r.next()
 		}
-		return &group{re}
+		return &captureGroup{re}
 	} else {
 		return r.ch()
 	}
 }
 
 func (r *parser) ch() Regex {
+	//println(string(r.peek()), *r.group, label(r.groups))
 	if r.peek() == '[' {
 		r.next()
 
@@ -152,19 +167,19 @@ func (r *parser) ch() Regex {
 				r.next()
 				if r.hasMore() && r.peek() != ']' {
 					to := r.next()
-					charSets.PushBack(charRange{from, to})
+					charSets.PushBack(&charRange{from, to, cp(r.groups)})
 				} else {
-					charSets.PushBack(charRange{from, math.MaxUint8})
+					charSets.PushBack(&charRange{from, math.MaxUint8, cp(r.groups)})
 				}
 			} else {
-				charSets.PushBack(singleChar{from})
+				charSets.PushBack(&singleChar{from, cp(r.groups)})
 			}
 		}
 		// lenient parsing: don't break if no closing square bracket, read to the end
 		if r.hasMore() {
 			r.next()
 		}
-		return &characterSet{exclude, charSets}
+		return &characterSet{exclude, *charSets, cp(r.groups)}
 
 	} else if r.peek() == '\\' {
 		r.next()
@@ -172,51 +187,59 @@ func (r *parser) ch() Regex {
 		if r.hasMore() {
 			switch c := r.next(); c {
 			case 'd':
-				return charRange{'0', '9'}
+				return &charRange{'0', '9', cp(r.groups)}
 			case 'D':
 				cs := list.New()
-				cs.PushBack(charRange{'0', '9'})
-				return &characterSet{true, cs}
+				cs.PushBack(&charRange{'0', '9', cp(r.groups)})
+				return &characterSet{true, *cs, cp(r.groups)}
 			case 's':
 				cs := list.New()
-				cs.PushBack(singleChar{' '})
-				cs.PushBack(singleChar{'\t'})
-				cs.PushBack(singleChar{'\n'})
-				cs.PushBack(singleChar{'\f'})
-				cs.PushBack(singleChar{'\r'})
-				return &characterSet{false, cs}
+				cs.PushBack(&singleChar{' ', cp(r.groups)})
+				cs.PushBack(&singleChar{'\t', cp(r.groups)})
+				cs.PushBack(&singleChar{'\n', cp(r.groups)})
+				cs.PushBack(&singleChar{'\f', cp(r.groups)})
+				cs.PushBack(&singleChar{'\r', cp(r.groups)})
+				return &characterSet{false, *cs, cp(r.groups)}
 			case 'S':
 				cs := list.New()
-				cs.PushBack(singleChar{' '})
-				cs.PushBack(singleChar{'\t'})
-				cs.PushBack(singleChar{'\n'})
-				cs.PushBack(singleChar{'\f'})
-				cs.PushBack(singleChar{'\r'})
-				return &characterSet{true, cs}
+				cs.PushBack(&singleChar{' ', cp(r.groups)})
+				cs.PushBack(&singleChar{'\t', cp(r.groups)})
+				cs.PushBack(&singleChar{'\n', cp(r.groups)})
+				cs.PushBack(&singleChar{'\f', cp(r.groups)})
+				cs.PushBack(&singleChar{'\r', cp(r.groups)})
+				return &characterSet{true, *cs, cp(r.groups)}
 			case 'w':
 				cs := list.New()
-				cs.PushBack(charRange{'0', '9'})
-				cs.PushBack(charRange{'a', 'z'})
-				cs.PushBack(charRange{'A', 'Z'})
-				cs.PushBack(singleChar{'_'})
-				return &characterSet{false, cs}
+				cs.PushBack(&charRange{'0', '9', cp(r.groups)})
+				cs.PushBack(&charRange{'a', 'z', cp(r.groups)})
+				cs.PushBack(&charRange{'A', 'Z', cp(r.groups)})
+				cs.PushBack(&singleChar{'_', cp(r.groups)})
+				return &characterSet{false, *cs, cp(r.groups)}
 			case 'W':
 				cs := list.New()
-				cs.PushBack(charRange{'0', '9'})
-				cs.PushBack(charRange{'a', 'z'})
-				cs.PushBack(charRange{'A', 'Z'})
-				cs.PushBack(singleChar{'_'})
-				return &characterSet{true, cs}
+				cs.PushBack(&charRange{'0', '9', cp(r.groups)})
+				cs.PushBack(&charRange{'a', 'z', cp(r.groups)})
+				cs.PushBack(&charRange{'A', 'Z', cp(r.groups)})
+				cs.PushBack(&singleChar{'_', cp(r.groups)})
+				return &characterSet{true, *cs, cp(r.groups)}
 			default:
-				return &singleChar{r.next()}
+				return &singleChar{c, cp(r.groups)}
 			}
 		} else {
-			return &singleChar{'\\'}
+			return &singleChar{'\\', cp(r.groups)}
 		}
 	} else if r.peek() == '.' {
 		r.next()
 		return &anyChar{}
 	} else {
-		return &singleChar{r.next()}
+		return &singleChar{r.next(), cp(r.groups)}
 	}
+}
+
+func cp(groups *list.List) list.List {
+	cp := list.New()
+	for g := groups.Front(); g != nil; g = g.Next() {
+		cp.PushBack(g.Value)
+	}
+	return *cp
 }
