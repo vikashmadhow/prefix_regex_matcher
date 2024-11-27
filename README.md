@@ -19,15 +19,15 @@ The regular expression engine currently supports the following patterns:
 | `(x)`       | `x` as a numbered capturing group, starting from 1. Group 0 is reserved for the whole expression. Precedence is also overridden by `()`. |
 
 ### Character and character classes
-| Expression | Meaning                                                                            |
-|------------|------------------------------------------------------------------------------------|
-| `[a-zAB]`  | Character set: `a` to `z`, `A` and `B`.                                            |
-| `[^a-zAB]` | Inverse of character set: any character other than `a` to `z`, `A` and `B`.        |
-| `.`        | Matches any character.                                                             |
-| `\d`       | Digits characters `[0-9]`.                                                         |
-| `\D`       | Not digits characters `[^0-9]`.                                                    |
-| `\s`       | Whitespace characters `[ \t\n\f\r]`.                                               |
-| `\S`       | Not whitespace characters `[^ \t\n\f\r]`.                                          |
-| `\w`       | Word characters `[0-9a-zA-Z_]`.                                                    |
-| `\W`       | Not word characters `[^0-9a-zA-Z_]`.                                               |
+| Expression | Meaning                                                                     |
+|------------|-----------------------------------------------------------------------------|
+| `[a-zAB]`  | Character set: `a` to `z`, `A` and `B`.                                     |
+| `[^a-zAB]` | Inverse of character set: any character other than `a` to `z`, `A` and `B`. |
+| `.`        | Matches any character.                                                      |
+| `\d`       | Digits `[0-9]`.                                                             |
+| `\D`       | Not digits `[^0-9]`.                                                        |
+| `\s`       | Whitespace `[ \t\n\f\r]`.                                                   |
+| `\S`       | Not whitespace `[^ \t\n\f\r]`.                                              |
+| `\w`       | Word characters `[0-9a-zA-Z_]`.                                             |
+| `\W`       | Not word characters `[^0-9a-zA-Z_]`.                                        |
 
