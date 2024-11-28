@@ -13,7 +13,7 @@ func TestLexer(t *testing.T) {
 		&TokenDefinition{Type: "INT", Pattern: "[0-9]+"},
 		&TokenDefinition{Type: "ID", Pattern: "[_a-zA-Z][_a-zA-Z0-9]*"},
 		&TokenDefinition{Type: "EQ", Pattern: "="},
-		&TokenDefinition{Type: "SPC", Pattern: "[ \t\r\n]+"},
+		&TokenDefinition{Type: "SPC", Pattern: "\\s+"},
 	)
 
 	var tokens []Token

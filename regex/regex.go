@@ -343,11 +343,3 @@ func addTransitions(target *automata, from state, to map[char]state) *automata {
 	}
 	return target
 }
-
-func captureGrp(groups *[]int) *list.List {
-	lst := list.New()
-	for _, g := range *groups {
-		lst.PushBack(g)
-	}
-	return lst
-}

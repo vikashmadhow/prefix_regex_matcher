@@ -13,8 +13,8 @@ import (
 type Token struct {
 	Type   string
 	Text   string
-	Line   uint32
-	Column uint32
+	Line   int
+	Column int
 }
 
 type TokenDefinition struct {
@@ -44,6 +44,8 @@ func New(definition ...*TokenDefinition) *Lexer {
 
 func (lexer *Lexer) lex(input string) iter.Seq2[Token, error] {
 	position := 0
+	var line = 1
+	var column = 1
 	return func(yield func(t Token, e error) bool) {
 		var matching int
 		var previousMatches []*tokenMatcher
@@ -51,6 +53,10 @@ func (lexer *Lexer) lex(input string) iter.Seq2[Token, error] {
 			matching = 0
 			previousMatches = nil
 			r, n := utf8.DecodeRuneInString(input[position:])
+			if r == '\n' {
+				line++
+				column = 1
+			}
 			for _, m := range lexer.matchers {
 				if m.matcher.LastMatch == regex.FullMatch {
 					previousMatches = append(previousMatches, m)
@@ -63,24 +69,25 @@ func (lexer *Lexer) lex(input string) iter.Seq2[Token, error] {
 				}
 			}
 			if matching == 0 {
-				t, e := lexer.produceToken(previousMatches)
+				t, e := lexer.produceToken(previousMatches, line, column)
 				if !yield(t, e) || e != nil {
 					return
 				}
 			} else {
 				position += n
+				column++
 			}
 		}
-		yield(lexer.produceToken(previousMatches))
+		yield(lexer.produceToken(previousMatches, line, column))
 	}
 }
 
-func (lexer *Lexer) produceToken(previousMatches []*tokenMatcher) (Token, error) {
+func (lexer *Lexer) produceToken(previousMatches []*tokenMatcher, line int, column int) (Token, error) {
 	var token Token
 	var err error
 	if len(previousMatches) > 0 {
 		match := previousMatches[0]
-		token = Token{match.def.Type, match.matcher.Matched, 0, 0}
+		token = Token{match.def.Type, match.matcher.Matched, line, column - len(match.matcher.Matched)}
 		err = nil
 	} else {
 		token = Token{}

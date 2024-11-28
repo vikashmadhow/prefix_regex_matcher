@@ -130,13 +130,9 @@ func (r *parser) base() Regex {
 		r.next()
 
 		*r.group++
-		//newGroups := r.groups
-		//newGroups.PushBack(*r.group)
 		r.groups.PushBack(*r.group)
 
 		re := r.regex()
-
-		r.groups.Back()
 		r.groups.Remove(r.groups.Back())
 
 		// lenient parsing: don't break if no closing bracket, read to the end
@@ -150,7 +146,6 @@ func (r *parser) base() Regex {
 }
 
 func (r *parser) ch() Regex {
-	//println(string(r.peek()), *r.group, label(r.groups))
 	if r.peek() == '[' {
 		r.next()
 

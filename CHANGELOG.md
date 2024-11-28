@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.1.1] - 2024-11-27
+- Line and column where each token matched reported in `Token` by `Lexer`. 
+
 ## [0.1.0] - 2024-11-25
 - Numbered capturing groups with group 0 matching whole string and each opening
   parenthesis `(` starting a new capturing group. Capturing groups can be nested.
