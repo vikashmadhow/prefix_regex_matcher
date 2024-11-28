@@ -32,11 +32,17 @@ func Test2(t *testing.T) {
 }
 
 func TestCaptureGroup(t *testing.T) {
-	r := NewRegex("(ab)|(ac)")
+	r := NewRegex("(aab)|(aac)")
 	m := r.Matcher()
+	println(r.Dfa.ToGraphViz("(aab)|(aac)"))
 
-	m.Match("ab")
+	m.Match("aab")
+	for k, v := range m.Groups {
+		println(k, v)
+	}
 
+	m.Reset()
+	m.Match("aac")
 	for k, v := range m.Groups {
 		println(k, v)
 	}

@@ -24,18 +24,21 @@ const (
 
 type Matcher struct {
 	LastMatch MatchType
-	Matched   string
-	Groups    map[int]string
-	compiled  *CompiledRegex
-	state     state
+	//LastCharGroups set[int]
+	Matched  string
+	Groups   map[int]string
+	compiled *CompiledRegex
+	state    state
 }
 
 func (r *CompiledRegex) Matcher() *Matcher {
 	return &Matcher{Start, "", map[int]string{}, r, r.Dfa.start}
+	//return &Matcher{Start, nil, "", map[int]string{}, r, r.Dfa.start}
 }
 
 func (m *Matcher) Reset() {
 	m.LastMatch = Start
+	//m.LastCharGroups = nil
 	m.Matched = ""
 	m.Groups = make(map[int]string)
 	m.state = m.compiled.Dfa.start
@@ -62,16 +65,37 @@ func (m *Matcher) MatchNext(r rune) MatchType {
 				m.LastMatch = FullMatch
 				m.Matched += string(r)
 			}
-
+			groupSet := set[int]{}
 			groups := c.groups()
 			for g := groups.Front(); g != nil; g = g.Next() {
+				group := g.Value.(int)
+				if group != 0 {
+					groupSet[group] = true
+				}
 				_, ok := m.Groups[g.Value.(int)]
 				if !ok {
-					m.Groups[g.Value.(int)] = ""
+					m.Groups[group] = ""
 				}
-				m.Groups[g.Value.(int)] += string(r)
+				m.Groups[group] += string(r)
 			}
-
+			//if m.LastCharGroups != nil &&
+			//	len(m.LastCharGroups) > 0 &&
+			//	len(groupSet) > 0 &&
+			//	len(groupSet) < len(m.LastCharGroups) {
+			//	// correct previous capture if a choice reduced the number of capture groups
+			//	eliminated := set[int]{}
+			//	for g := range m.LastCharGroups {
+			//		if _, ok := groupSet[g]; !ok {
+			//			eliminated[g] = true
+			//		}
+			//	}
+			//	if len(eliminated) > 0 {
+			//		for g := range eliminated {
+			//			m.Groups[g] = m.Groups[g][:len(m.Groups[g])-1]
+			//		}
+			//	}
+			//}
+			//m.LastCharGroups = groupSet
 			return m.LastMatch
 		}
 	}
