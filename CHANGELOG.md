@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.1.2] - 2024-11-30
+- Improved lexer matching and position tracking.
+
 ## [0.1.1] - 2024-11-27
 - Line and column where each token matched reported in `Token` by `Lexer`. 
 

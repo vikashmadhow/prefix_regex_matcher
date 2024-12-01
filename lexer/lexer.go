@@ -7,6 +7,7 @@ import (
 	"errors"
 	"github.com/vikashmadhow/prefix_regex_matcher/regex"
 	"iter"
+	"strconv"
 	"unicode/utf8"
 )
 
@@ -49,9 +50,11 @@ func (lexer *Lexer) lex(input string) iter.Seq2[Token, error] {
 	return func(yield func(t Token, e error) bool) {
 		var matching int
 		var previousMatches []*tokenMatcher
+		var previousPartialMatches []*tokenMatcher
 		for position < len(input) {
 			matching = 0
 			previousMatches = nil
+			previousPartialMatches = nil
 			r, n := utf8.DecodeRuneInString(input[position:])
 			if r == '\n' {
 				line++
@@ -60,6 +63,8 @@ func (lexer *Lexer) lex(input string) iter.Seq2[Token, error] {
 			for _, m := range lexer.matchers {
 				if m.matcher.LastMatch == regex.FullMatch {
 					previousMatches = append(previousMatches, m)
+				} else if m.matcher.LastMatch == regex.PartialMatch {
+					previousPartialMatches = append(previousPartialMatches, m)
 				}
 				if m.matcher.LastMatch != regex.NoMatch {
 					match := m.matcher.MatchNext(r)
@@ -69,7 +74,7 @@ func (lexer *Lexer) lex(input string) iter.Seq2[Token, error] {
 				}
 			}
 			if matching == 0 {
-				t, e := lexer.produceToken(previousMatches, line, column)
+				t, e := lexer.produceToken(previousMatches, previousPartialMatches, line, column)
 				if !yield(t, e) || e != nil {
 					return
 				}
@@ -78,11 +83,14 @@ func (lexer *Lexer) lex(input string) iter.Seq2[Token, error] {
 				column++
 			}
 		}
-		yield(lexer.produceToken(previousMatches, line, column))
+		yield(lexer.produceToken(previousMatches, previousPartialMatches, line, column))
 	}
 }
 
-func (lexer *Lexer) produceToken(previousMatches []*tokenMatcher, line int, column int) (Token, error) {
+func (lexer *Lexer) produceToken(
+	previousMatches []*tokenMatcher,
+	previousPartialMatches []*tokenMatcher,
+	line int, column int) (Token, error) {
 	var token Token
 	var err error
 	if len(previousMatches) > 0 {
@@ -91,7 +99,17 @@ func (lexer *Lexer) produceToken(previousMatches []*tokenMatcher, line int, colu
 		err = nil
 	} else {
 		token = Token{}
-		err = errors.New("no match")
+		msg := " error at " + strconv.Itoa(line) + ":" + strconv.Itoa(column)
+		if len(previousPartialMatches) > 0 {
+			msg += ": potential partial match(es): "
+			for i, m := range previousPartialMatches {
+				if i > 0 {
+					msg += ", "
+				}
+				msg += m.def.Type
+			}
+		}
+		err = errors.New(msg)
 	}
 	for _, m := range lexer.matchers {
 		m.matcher.Reset()
