@@ -65,7 +65,7 @@ func (r *CompiledRegex) Match(input string) bool {
 			return false
 		}
 	}
-	return slices.Index(r.Dfa.final, m.state) != -1
+	return slices.Index(r.Dfa.final, m.State) != -1
 }
 
 // choice represents the regex | regex rule
@@ -123,7 +123,7 @@ func (c *choice) Pattern() string {
 //	    right
 func (c *choice) nfa() *automata {
 	a := automata{
-		trans: make(transitions),
+		Trans: make(transitions),
 		start: &stateObj{},
 		final: []state{&stateObj{}},
 	}
@@ -158,14 +158,14 @@ func (s *sequence) Pattern() string {
 	return ret
 }
 
-// automata constructs a finite-state automaton for the sequence of regular expressions.
+// automata constructs a finite-State automaton for the sequence of regular expressions.
 // It merges the individual automata of each regular expression in the sequence, connecting
 // the final state of one to the start state of the next. It returns a pointer to the resulting automata.
 //
 //	start --> re1 in sequence --> re2 --> .... --> final
 func (s *sequence) nfa() *automata {
 	a := automata{
-		trans: make(transitions),
+		Trans: make(transitions),
 		start: &stateObj{},
 		final: []state{&stateObj{}},
 	}
@@ -272,7 +272,7 @@ func (r *repeat) Pattern() string {
 //	                         +---n-m times----+
 func (r *repeat) nfa() *automata {
 	a := &automata{
-		trans: make(transitions),
+		Trans: make(transitions),
 		start: &stateObj{},
 		final: []state{&stateObj{}},
 	}
@@ -326,16 +326,16 @@ func (r *captureGroup) nfa() *automata {
 }
 
 func merge(target *automata, source *automata) *automata {
-	for k, v := range source.trans {
-		target.trans[k] = v
+	for k, v := range source.Trans {
+		target.Trans[k] = v
 	}
 	return target
 }
 
 func addTransitions(target *automata, from state, to map[char]state) *automata {
-	existing, ok := target.trans[from]
+	existing, ok := target.Trans[from]
 	if !ok {
-		target.trans[from] = to
+		target.Trans[from] = to
 	} else {
 		for k, v := range to {
 			existing[k] = v

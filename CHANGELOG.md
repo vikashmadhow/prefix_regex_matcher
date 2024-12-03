@@ -1,7 +1,11 @@
 # Changelog
 
+## [0.1.3] - 2024-12-02
+- Lexer will not provide the token(s) which failed and the expected next character(s) for each.
+- Error information is now provided if the last token in the input stream has an error,
+
 ## [0.1.2] - 2024-11-30
-- Improved lexer matching and position tracking.
+- Improved lexer matching, error and position tracking.
 
 ## [0.1.1] - 2024-11-27
 - Line and column where each token matched reported in `Token` by `Lexer`. 

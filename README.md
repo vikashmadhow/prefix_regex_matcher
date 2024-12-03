@@ -1,7 +1,7 @@
 # Prefix regular expression matcher and lexer
 A regular expression implementation that can do partial prefix matching whereby it is 
 supplied a string to match one character at a time and responds if the supplied prefix 
-is a partial match, complete match or a failed match. 
+is a partial match, complete match or a failed match.
 
 This is then used to build a fast lexer.
 

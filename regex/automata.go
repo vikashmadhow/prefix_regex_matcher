@@ -19,7 +19,7 @@ type transitions map[state]map[char]state
 type set[T comparable] map[T]bool
 
 type automata struct {
-	trans transitions
+	Trans transitions
 	start state
 	final []state
 }
@@ -50,7 +50,7 @@ func (auto *automata) ToGraphViz(title string) string {
 		}
 	}
 	spec += "\t}\n"
-	for s, v := range auto.trans {
+	for s, v := range auto.Trans {
 		_, ok := nodeNames[s]
 		if !ok {
 			nodeNames[s] = strconv.Itoa(nodeCount)
@@ -71,7 +71,7 @@ func (auto *automata) ToGraphViz(title string) string {
 
 func dfa(nfa *automata) *automata {
 	dfa := automata{
-		trans: make(transitions),
+		Trans: make(transitions),
 		start: nil,
 		final: []state{},
 	}
@@ -79,7 +79,7 @@ func dfa(nfa *automata) *automata {
 	dfaStates := map[state]set[state]{}
 	explored := make(chan set[state], 1000)
 	reachable := &set[state]{}
-	eClosure(nfa.trans, nfa.start, reachable)
+	eClosure(nfa.Trans, nfa.start, reachable)
 	explored <- *reachable
 
 	dfa.start = &stateObj{}
@@ -92,10 +92,10 @@ func dfa(nfa *automata) *automata {
 		dfaState := <-explored
 		source := find(dfaStates, dfaState)
 
-		// union all outgoing character transitions on any state of the DFA state
+		// union all outgoing character transitions on any State of the DFA State
 		chars := map[string][]char{}
 		for s := range dfaState {
-			trans := nfa.trans[s]
+			trans := nfa.Trans[s]
 			for c := range trans {
 				if !c.isEmpty() {
 					pattern := c.Pattern()
@@ -117,9 +117,9 @@ func dfa(nfa *automata) *automata {
 					groups[i.Value.(int)] = true
 				}
 				for s := range dfaState {
-					trans := nfa.trans[s]
+					trans := nfa.Trans[s]
 					if t, ok := trans[c]; ok {
-						eClosure(nfa.trans, t, reachable)
+						eClosure(nfa.Trans, t, reachable)
 					}
 				}
 			}
@@ -140,11 +140,11 @@ func dfa(nfa *automata) *automata {
 			if containsFinal(nfa, reachable) && slices.Index(dfa.final, target) == -1 {
 				dfa.final = append(dfa.final, target)
 			}
-			_, ok := dfa.trans[source]
+			_, ok := dfa.Trans[source]
 			if !ok {
-				dfa.trans[source] = map[char]state{}
+				dfa.Trans[source] = map[char]state{}
 			}
-			dfa.trans[source][combinedChar] = target
+			dfa.Trans[source][combinedChar] = target
 		}
 	}
 	return &dfa

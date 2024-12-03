@@ -216,7 +216,7 @@ func (c *characterSet) match(ch rune) bool {
 
 func charNfa(c char) *automata {
 	a := automata{
-		trans: make(transitions),
+		Trans: make(transitions),
 		start: &stateObj{},
 		final: []state{&stateObj{}},
 	}

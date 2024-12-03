@@ -56,16 +56,8 @@ func (lexer *Lexer) lex(input string) iter.Seq2[Token, error] {
 			previousMatches = nil
 			previousPartialMatches = nil
 			r, n := utf8.DecodeRuneInString(input[position:])
-			if r == '\n' {
-				line++
-				column = 1
-			}
 			for _, m := range lexer.matchers {
-				if m.matcher.LastMatch == regex.FullMatch {
-					previousMatches = append(previousMatches, m)
-				} else if m.matcher.LastMatch == regex.PartialMatch {
-					previousPartialMatches = append(previousPartialMatches, m)
-				}
+				fillPrevious(m, &previousMatches, &previousPartialMatches)
 				if m.matcher.LastMatch != regex.NoMatch {
 					match := m.matcher.MatchNext(r)
 					if match != regex.NoMatch {
@@ -80,10 +72,26 @@ func (lexer *Lexer) lex(input string) iter.Seq2[Token, error] {
 				}
 			} else {
 				position += n
-				column++
+				if r == '\n' {
+					line++
+					column = 1
+				} else {
+					column++
+				}
 			}
 		}
+		for _, m := range lexer.matchers {
+			fillPrevious(m, &previousMatches, &previousPartialMatches)
+		}
 		yield(lexer.produceToken(previousMatches, previousPartialMatches, line, column))
+	}
+}
+
+func fillPrevious(m *tokenMatcher, previousMatches *[]*tokenMatcher, previousPartialMatches *[]*tokenMatcher) {
+	if m.matcher.LastMatch == regex.FullMatch {
+		*previousMatches = append(*previousMatches, m)
+	} else if m.matcher.LastMatch == regex.PartialMatch {
+		*previousPartialMatches = append(*previousPartialMatches, m)
 	}
 }
 
@@ -99,14 +107,25 @@ func (lexer *Lexer) produceToken(
 		err = nil
 	} else {
 		token = Token{}
-		msg := " error at " + strconv.Itoa(line) + ":" + strconv.Itoa(column)
+		msg := "error at " + strconv.Itoa(line) + ":" + strconv.Itoa(column)
 		if len(previousPartialMatches) > 0 {
 			msg += ": potential partial match(es): "
 			for i, m := range previousPartialMatches {
 				if i > 0 {
 					msg += ", "
 				}
-				msg += m.def.Type
+				trans := m.matcher.Compiled.Dfa.Trans[m.matcher.State]
+				msg += m.def.Type + " (next expected character(s): "
+				first := true
+				for k := range trans {
+					if first {
+						first = false
+					} else {
+						msg += ", "
+					}
+					msg += k.Pattern()
+				}
+				msg += ")"
 			}
 		}
 		err = errors.New(msg)
