@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.1] - 2024-12-30
+- Filtering, mapping and flat-mapping can now work on both the pull and push versions of iter.Seq
+  and iter.Seq2.
+- Lexer `Lex` methods for returning a push version of iter.Seq2, which is simple to iterate over.
+  However, these version does not allow for token pushback.
+
 ## [0.2.0] - 2024-12-30
 - A set of utility functions for filtering, mapping and flat-mapping over iter.Seq and iter.Seq2.
 - Lexer now reads its input from an `io.Reader` which is more memory efficient.

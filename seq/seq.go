@@ -52,7 +52,9 @@ type FlatMap2Func[K, V, MK, MV any] func(K, V) []KeyValue[MK, MV]
 func Push[V any](seq Seq[V], stop func()) iter.Seq[V] {
 	return func(yield func(value V) bool) {
 		for v, ok := seq(); ok; v, ok = seq() {
-			yield(v)
+			if !yield(v) {
+				break
+			}
 		}
 		stop()
 	}
@@ -62,7 +64,9 @@ func Push[V any](seq Seq[V], stop func()) iter.Seq[V] {
 func Push2[K, V any](seq Seq2[K, V], stop func()) iter.Seq2[K, V] {
 	return func(yield func(key K, value V) bool) {
 		for k, v, ok := seq(); ok; k, v, ok = seq() {
-			yield(k, v)
+			if !yield(k, v) {
+				break
+			}
 		}
 		stop()
 	}

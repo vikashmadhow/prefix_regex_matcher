@@ -157,6 +157,10 @@ func (lexer *Lexer) LexText(input string) *TokenSeq {
 	return lexer.Lex(strings.NewReader(input))
 }
 
+func (lexer *Lexer) LexTextSeq(input string) iter.Seq2[Token, error] {
+	return lexer.LexSeq(strings.NewReader(input))
+}
+
 //func (lexer *Lexer) Lex(in io.Reader) iter.Seq2[Token, error] {
 //	var position int
 //	var column int
@@ -220,6 +224,16 @@ func (lexer *Lexer) Lex(in io.Reader) *TokenSeq {
 		}
 	}
 	return &TokenSeq{next: next, stop: stop}
+}
+
+func (lexer *Lexer) LexSeq(in io.Reader) iter.Seq2[Token, error] {
+	next := lexer.lex(in)
+	if lexer.modulators != nil {
+		for _, m := range lexer.modulators {
+			next = seq.FlatMapSeq2(next, m)
+		}
+	}
+	return next
 }
 
 func (lexer *Lexer) lex(in io.Reader) iter.Seq2[Token, error] {

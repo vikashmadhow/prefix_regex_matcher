@@ -20,17 +20,15 @@ func TestBasicLexer(t *testing.T) {
 	)
 
 	var tokens []Token
-	tokenSeq := l.LexText("let x =  1000")
-	defer tokenSeq.Stop()
-	for token := range seq.Push2(tokenSeq.Next, tokenSeq.Stop) {
-		tokens = append(tokens, token)
-	}
-
 	//tokenSeq := l.LexText("let x =  1000")
 	//defer tokenSeq.Stop()
-	//for token, err, valid := tokenSeq.Next(); valid && err == nil; token, err, valid = tokenSeq.Next() {
+	//for token := range seq.Push2(tokenSeq.Next, tokenSeq.Stop) {
 	//	tokens = append(tokens, token)
 	//}
+
+	for token := range l.LexTextSeq("let x =  1000") {
+		tokens = append(tokens, token)
+	}
 
 	if !slices.Equal(tokens, []Token{
 		{"LET", "let", 1, 1},
@@ -99,12 +97,17 @@ func TestMultiline(t *testing.T) {
 	l.Modulator(IgnoreTokens("SPC"))
 
 	var tokens []Token
-	tokenSeq := l.LexText(`let x = 1000
-							 let y =x+y*-2000`)
-	for token := range seq.Push2(tokenSeq.Next, tokenSeq.Stop) {
-		//if token.Type != "SPC" {
+	//tokenSeq := l.LexText(`let x = 1000
+	//						 let y =x+y*-2000`)
+	//for token := range seq.Push2(tokenSeq.Next, tokenSeq.Stop) {
+	//	//if token.Type != "SPC" {
+	//	tokens = append(tokens, token)
+	//	//}
+	//}
+
+	for token := range l.LexTextSeq(`let x = 1000
+							 let y =x+y*-2000`) {
 		tokens = append(tokens, token)
-		//}
 	}
 
 	fmt.Println(tokens)
