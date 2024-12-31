@@ -32,6 +32,7 @@ import (
 	"math"
 	"slices"
 	"strconv"
+	"strings"
 )
 
 // Regex is the base visible interface of regular expressions
@@ -46,8 +47,40 @@ type CompiledRegex struct {
 	Dfa   *automata
 }
 
+func Escape(s string) string {
+	//str := x(s)
+	//str = str.replace("(", "\\(").
+	//	replace(")", "\\)").
+	//	replace("+", "\\+").
+	//	replace("*", "\\*").
+	//	replace("?", "\\?")
+	//
+	//return string(str)
+
+	s = strings.ReplaceAll(s, "\\", "\\\\")
+	s = strings.ReplaceAll(s, "(", "\\(")
+	s = strings.ReplaceAll(s, ")", "\\)")
+	s = strings.ReplaceAll(s, "[", "\\[")
+	s = strings.ReplaceAll(s, "]", "\\]")
+	s = strings.ReplaceAll(s, "{", "\\{")
+	s = strings.ReplaceAll(s, "}", "\\}")
+	s = strings.ReplaceAll(s, "|", "\\|")
+	s = strings.ReplaceAll(s, "+", "\\+")
+	s = strings.ReplaceAll(s, "*", "\\*")
+	s = strings.ReplaceAll(s, "?", "\\?")
+
+	return s
+}
+
+//
+//type x string
+//
+//func (s x) replace(old string, with string) x {
+//	return x(strings.ReplaceAll(string(s), old, with))
+//}
+
 // NewRegex creates a new regular expression from the input
-func NewRegex(input string) CompiledRegex {
+func NewRegex(input string) *CompiledRegex {
 	group := 0
 	groups := list.New()
 	groups.PushBack(0)
@@ -55,7 +88,7 @@ func NewRegex(input string) CompiledRegex {
 	r := parser.regex()
 	n := r.nfa()
 	d := dfa(n)
-	return CompiledRegex{r, n, d}
+	return &CompiledRegex{r, n, d}
 }
 
 func (r *CompiledRegex) Match(input string) bool {
@@ -66,6 +99,10 @@ func (r *CompiledRegex) Match(input string) bool {
 		}
 	}
 	return slices.Index(r.Dfa.final, m.State) != -1
+}
+
+func (r *CompiledRegex) MatchEmpty() bool {
+	return slices.Index(r.Dfa.final, r.Dfa.start) != -1
 }
 
 // choice represents the regex | regex rule

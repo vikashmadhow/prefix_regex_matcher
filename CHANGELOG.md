@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.0] - 2024-12-30
+- A set of utility functions for filtering, mapping and flat-mapping over iter.Seq and iter.Seq2.
+- Lexer now reads its input from an `io.Reader` which is more memory efficient.
+- Flatmap functions can be attached to a lexer to modulate its output, arbitrarily changing the
+  token stream. This can be used to ignore certain tokens, modify tokens or insert new tokens
+  at arbitrary points in the token stream.
+- Simple context-free-grammar definition and predictive parser (untested).
+
 ## [0.1.3] - 2024-12-02
 - Lexer will not provide the token(s) which failed and the expected next character(s) for each.
 - Error information is now provided if the last token in the input stream has an error,

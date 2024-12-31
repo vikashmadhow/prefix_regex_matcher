@@ -63,6 +63,9 @@ func TestEmpty(t *testing.T) {
 	if r.Match("a") {
 		t.Error("'' matched 'a'")
 	}
+	if !r.MatchEmpty() {
+		t.Error("'' MatchEmpty returns false")
+	}
 }
 
 func TestSingleChar(t *testing.T) {
@@ -78,6 +81,9 @@ func TestSingleChar(t *testing.T) {
 	}
 	if r.Match("") {
 		t.Error("'a' matched ''")
+	}
+	if r.MatchEmpty() {
+		t.Error("'a' MatchEmpty returns true")
 	}
 }
 
@@ -107,6 +113,9 @@ func TestChoice(t *testing.T) {
 	}
 	if r.Match("ab") {
 		t.Error("'a|b' matched 'ab'")
+	}
+	if r.MatchEmpty() {
+		t.Error("'a|b' MatchEmpty returns true")
 	}
 }
 
@@ -453,5 +462,12 @@ func TestDot(t *testing.T) {
 	}
 	if r.Match("") {
 		t.Error("'.{3,5}' matched ''")
+	}
+}
+
+func TestUnicode(t *testing.T) {
+	r := NewRegex(".{3,3}")
+	if !r.Match("日本語") {
+		t.Error("'.{3,3}' did not match '日本語'")
 	}
 }
