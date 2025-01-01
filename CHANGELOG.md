@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2] - 2025-01-01
+- Improvement to type definition of `Modulator`, `filter`, `map` and `flatMap`.
+- `filter`, `map` and `flatMap` can now work with type aliases of the predicate and
+  mapping function.
+- Flatmap fixed to close holding channel and continue to return data after first 
+  mapping.
+
 ## [0.2.1] - 2024-12-30
 - Filtering, mapping and flat-mapping can now work on both the pull and push versions of iter.Seq
   and iter.Seq2.

@@ -10,7 +10,7 @@ func TestSimpleParser(t *testing.T) {
 }
 
 func testGrammar() *Grammar {
-	return NewGrammar(
+	return New(
 		"test_language",
 		[]*lexer.TokenType{
 			lexer.NewTokenType("LET", "let"),
