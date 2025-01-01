@@ -15,66 +15,11 @@ import (
 	"unicode/utf8"
 )
 
-var (
-	Empty = TokenType{Id: "∅", Pattern: ""}
-	EOF   = TokenType{Id: "Ω", Pattern: "$"}
-)
-
-type Token struct {
-	Type   string
-	Text   string
-	Line   int
-	Column int
-}
-
-type TokenType struct {
-	Id       string
-	Pattern  string
-	Compiled *regex.CompiledRegex
-}
-
-type TokenSeq struct {
-	next       seq.Seq2[Token, error]
-	stop       func()
-	pushedBack []*Token
-}
-
-func (t *TokenSeq) Next() (Token, error, bool) {
-	if len(t.pushedBack) > 0 {
-		token := t.pushedBack[len(t.pushedBack)-1]
-		t.pushedBack = t.pushedBack[:len(t.pushedBack)-1]
-		return *token, nil, true
-	}
-	return t.next()
-}
-
-func (t *TokenSeq) Stop() {
-	t.stop()
-}
-
-func (t *TokenSeq) Pushback(token *Token) {
-	t.pushedBack = append(t.pushedBack, token)
-}
-
-func IgnoreTokens(types ...string) seq.FlatMap2Func[Token, error, Token, error] {
-	ignore := map[string]bool{}
-	for _, t := range types {
-		ignore[t] = true
-	}
-	return func(t Token, e error) []seq.KeyValue[Token, error] {
-		if _, ok := ignore[t.Type]; ok {
-			return nil
-		} else {
-			return []seq.KeyValue[Token, error]{{t, e}}
-		}
-	}
-}
-
 type Lexer struct {
 	Definition []*TokenType
 	matchers   []*tokenMatcher
 	bufferSize int
-	modulators []seq.FlatMap2Func[Token, error, Token, error]
+	modulators []Modulator
 }
 
 type tokenMatcher struct {
@@ -105,53 +50,9 @@ func (lexer *Lexer) Buffer(size int) {
 	lexer.bufferSize = size
 }
 
-func (lexer *Lexer) Modulator(modulator ...seq.FlatMap2Func[Token, error, Token, error]) {
+func (lexer *Lexer) Modulator(modulator ...Modulator) {
 	lexer.modulators = append(lexer.modulators, modulator...)
 }
-
-//func (lexer *Lexer) Lex(input string) iter.Seq2[Token, error] {
-//	position := 0
-//	var line = 1
-//	var column = 1
-//	return func(yield func(t Token, e error) bool) {
-//		var matching int
-//		var previousMatches []*tokenMatcher
-//		var previousPartialMatches []*tokenMatcher
-//		for position < len(input) {
-//			matching = 0
-//			previousMatches = nil
-//			previousPartialMatches = nil
-//			r, n := utf8.DecodeRuneInString(input[position:])
-//			for _, m := range lexer.matchers {
-//				fillPrevious(m, &previousMatches, &previousPartialMatches)
-//				if m.matcher.LastMatch != regex.NoMatch {
-//					match := m.matcher.MatchNext(r)
-//					if match != regex.NoMatch {
-//						matching++
-//					}
-//				}
-//			}
-//			if matching == 0 {
-//				t, e := lexer.produceToken(previousMatches, previousPartialMatches, line, column)
-//				if !yield(t, e) || e != nil {
-//					return
-//				}
-//			} else {
-//				position += n
-//				if r == '\n' {
-//					line++
-//					column = 1
-//				} else {
-//					column++
-//				}
-//			}
-//		}
-//		for _, m := range lexer.matchers {
-//			fillPrevious(m, &previousMatches, &previousPartialMatches)
-//		}
-//		yield(lexer.produceToken(previousMatches, previousPartialMatches, line, column))
-//	}
-//}
 
 func (lexer *Lexer) LexText(input string) *TokenSeq {
 	return lexer.Lex(strings.NewReader(input))
@@ -160,61 +61,6 @@ func (lexer *Lexer) LexText(input string) *TokenSeq {
 func (lexer *Lexer) LexTextSeq(input string) iter.Seq2[Token, error] {
 	return lexer.LexSeq(strings.NewReader(input))
 }
-
-//func (lexer *Lexer) Lex(in io.Reader) iter.Seq2[Token, error] {
-//	var position int
-//	var column int
-//	line := 0
-//
-//	scanner := bufio.NewReader(in)
-//	return func(yield func(t Token, e error) bool) {
-//		var matching int
-//		var previousMatches []*tokenMatcher
-//		var previousPartialMatches []*tokenMatcher
-//
-//		for {
-//			input, err := scanner.ReadString('\n')
-//			// fmt.Print(input)
-//
-//			line++
-//			position = 0
-//			column = 1
-//
-//			for position < len(input) {
-//				matching = 0
-//				previousMatches = nil
-//				previousPartialMatches = nil
-//				r, n := utf8.DecodeRuneInString(input[position:])
-//				for _, m := range lexer.matchers {
-//					fillPrevious(m, &previousMatches, &previousPartialMatches)
-//					if m.matcher.LastMatch != regex.NoMatch {
-//						match := m.matcher.MatchNext(r)
-//						if match != regex.NoMatch {
-//							matching++
-//						}
-//					}
-//				}
-//				if matching == 0 {
-//					t, e := lexer.produceToken(previousMatches, previousPartialMatches, line, column)
-//					if !yield(t, e) || e != nil {
-//						return
-//					}
-//				} else {
-//					position += n
-//					column++
-//				}
-//			}
-//			for _, m := range lexer.matchers {
-//				fillPrevious(m, &previousMatches, &previousPartialMatches)
-//			}
-//			yield(lexer.produceToken(previousMatches, previousPartialMatches, line, column))
-//
-//			if err != nil {
-//				break
-//			}
-//		}
-//	}
-//}
 
 func (lexer *Lexer) Lex(in io.Reader) *TokenSeq {
 	next, stop := iter.Pull2(lexer.lex(in))
@@ -304,6 +150,7 @@ func (lexer *Lexer) lex(in io.Reader) iter.Seq2[Token, error] {
 				break
 			}
 		}
+		yield(Token{Type: EOF, Text: "", Line: line, Column: column}, nil)
 	}
 }
 

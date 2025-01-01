@@ -72,13 +72,6 @@ func Escape(s string) string {
 	return s
 }
 
-//
-//type x string
-//
-//func (s x) replace(old string, with string) x {
-//	return x(strings.ReplaceAll(string(s), old, with))
-//}
-
 // NewRegex creates a new regular expression from the input
 func NewRegex(input string) *CompiledRegex {
 	group := 0

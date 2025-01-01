@@ -38,6 +38,7 @@ func TestBasicLexer(t *testing.T) {
 		{"EQ", "=", 1, 7},
 		{"SPC", "  ", 1, 8},
 		{"INT", "1000", 1, 10},
+		{EOF, "", 1, 14},
 	}) {
 		t.Error("Invalid output", tokens)
 	}
@@ -71,6 +72,7 @@ func TestLexerError(t *testing.T) {
 		{"EQ", "=", 1, 7},
 		{"SPC", "  ", 1, 8},
 		{"INT", "1000", 1, 10},
+		{EOF, "", 1, 14},
 	}) {
 		t.Error("Invalid output", tokens)
 	}
@@ -86,15 +88,15 @@ func TestMultiline(t *testing.T) {
 		&TokenType{Id: "TIME", Pattern: "\\*|/"},
 		&TokenType{Id: "SPC", Pattern: "\\s+"},
 	)
-	//l.Modulator(func(token Token, err error) []seq.KeyValue[Token, error] {
+	//l.Modulator(func(token regex.Token, err error) []seq.Pair[regex.Token, error] {
 	//	if token.Type == "SPC" {
 	//		return nil
 	//	} else {
-	//		return []seq.KeyValue[Token, error]{{token, err}}
+	//		return []seq.Pair[regex.Token, error]{{token, err}}
 	//	}
 	//})
 
-	l.Modulator(IgnoreTokens("SPC"))
+	l.Modulator(Ignore("SPC"))
 
 	var tokens []Token
 	//tokenSeq := l.LexText(`let x = 1000
@@ -131,6 +133,7 @@ func TestMultiline(t *testing.T) {
 		{"TIME", "*", 2, 19},
 		{"PLUS", "-", 2, 20},
 		{"INT", "2000", 2, 21},
+		{EOF, "", 2, 25},
 	})
 
 	if err != nil {
@@ -149,15 +152,10 @@ func TestUnicode(t *testing.T) {
 		&TokenType{Id: "SPC", Pattern: "\\s+"},
 	)
 	l.Buffer(3)
-	//l.Filter(func(token Token, err error) bool {
-	//	return token.Type != "SPC"
-	//})
-
-	l.Modulator(IgnoreTokens("SPC"))
+	l.Modulator(Ignore("SPC"))
 
 	var tokens []Token
-	tokenSeq := l.LexText(`let A日本語 = 1000`)
-	for token := range seq.Push2(tokenSeq.Next, tokenSeq.Stop) {
+	for token := range l.LexTextSeq(`let A日本語 = 1000`) {
 		tokens = append(tokens, token)
 	}
 
@@ -167,6 +165,90 @@ func TestUnicode(t *testing.T) {
 		{"ID", "A日本語", 1, 5},
 		{"EQ", "=", 1, 10},
 		{"INT", "1000", 1, 12},
+		{EOF, "", 1, 16},
+	})
+
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestReverse(t *testing.T) {
+	l := New(
+		&TokenType{Id: "LET", Pattern: "let"},
+		&TokenType{Id: "INT", Pattern: "\\d+"},
+		&TokenType{Id: "ID", Pattern: "[_a-zA-Z]\\S*"},
+		&TokenType{Id: "EQ", Pattern: "="},
+		&TokenType{Id: "PLUS", Pattern: "\\+|-"},
+		&TokenType{Id: "TIME", Pattern: "\\*|/"},
+		&TokenType{Id: "SPC", Pattern: "\\s+"},
+	)
+	//l.Buffer(3)
+	l.Modulator(Ignore("SPC"), Reverse())
+
+	var tokens []Token
+	for token := range l.LexTextSeq(`let A日本語 = 1000`) {
+		tokens = append(tokens, token)
+	}
+
+	fmt.Println(tokens)
+	_, err := matchTokens(tokens, []Token{
+		{"INT", "1000", 1, 12},
+		{"EQ", "=", 1, 10},
+		{"ID", "A日本語", 1, 5},
+		{"LET", "let", 1, 1},
+	})
+
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestReverseAlternate(t *testing.T) {
+	l := New(
+		&TokenType{Id: "LET", Pattern: "let"},
+		&TokenType{Id: "INT", Pattern: "\\d+"},
+		&TokenType{Id: "ID", Pattern: "[_a-zA-Z]\\S*"},
+		&TokenType{Id: "EQ", Pattern: "="},
+		&TokenType{Id: "PLUS", Pattern: "\\+|-"},
+		&TokenType{Id: "TIME", Pattern: "\\*|/"},
+		&TokenType{Id: "SPC", Pattern: "\\s+"},
+	)
+	//l.Buffer(3)
+	l.Modulator(Ignore("SPC"))
+
+	l.Modulator(func() Modulator {
+		var stream []seq.Pair[Token, error] = nil
+		return func(t Token, err error) []seq.Pair[Token, error] {
+			if t.Type == EOF {
+				slices.Reverse(stream)
+				return stream
+			} else {
+				stream = append(stream, seq.Pair[Token, error]{A: t, B: err})
+				if len(stream) >= 2 {
+					ret := make([]seq.Pair[Token, error], len(stream))
+					copy(ret, stream)
+					slices.Reverse(ret)
+					stream = nil
+					return ret
+				}
+				return nil
+			}
+		}
+	}())
+
+	var tokens []Token
+	for token := range l.LexTextSeq(`let A日本語 = 1000 +`) {
+		tokens = append(tokens, token)
+	}
+
+	fmt.Println(tokens)
+	_, err := matchTokens(tokens, []Token{
+		{"ID", "A日本語", 1, 5},
+		{"LET", "let", 1, 1},
+		{"INT", "1000", 1, 12},
+		{"EQ", "=", 1, 10},
+		{"PLUS", "+", 1, 17},
 	})
 
 	if err != nil {
@@ -203,6 +285,7 @@ func TestEndError(t *testing.T) {
 		{"ID", "x", 1, 5},
 		{"EQ", ":=", 1, 7},
 		{"INT", "1000", 1, 10},
+		{EOF, "", 1, 14},
 	})
 
 	if err != nil {

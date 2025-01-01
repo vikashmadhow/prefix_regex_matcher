@@ -2,14 +2,14 @@ package seq
 
 import "iter"
 
-func Map[U, V any](seq Seq[U], mapper MapFunc[U, V]) Seq[V] {
+func Map[U, V any, F ~func(U) V](seq Seq[U], mapper F) Seq[V] {
 	return func() (V, bool) {
 		value, valid := seq()
 		return mapper(value), valid
 	}
 }
 
-func MapSeq[U, V any](seq iter.Seq[U], mapper MapFunc[U, V]) iter.Seq[V] {
+func MapSeq[U, V any, F ~func(U) V](seq iter.Seq[U], mapper F) iter.Seq[V] {
 	return func(yield func(V) bool) {
 		for value := range seq {
 			if !yield(mapper(value)) {
@@ -19,7 +19,7 @@ func MapSeq[U, V any](seq iter.Seq[U], mapper MapFunc[U, V]) iter.Seq[V] {
 	}
 }
 
-func Map2[K, V, MK, MV any](seq Seq2[K, V], mapper Map2Func[K, V, MK, MV]) Seq2[MK, MV] {
+func Map2[K, V, MK, MV any, F ~func(K, V) (MK, MV)](seq Seq2[K, V], mapper F) Seq2[MK, MV] {
 	return func() (MK, MV, bool) {
 		key, value, valid := seq()
 		mk, mv := mapper(key, value)
@@ -27,7 +27,7 @@ func Map2[K, V, MK, MV any](seq Seq2[K, V], mapper Map2Func[K, V, MK, MV]) Seq2[
 	}
 }
 
-func MapSeq2[K, V, MK, MV any](seq iter.Seq2[K, V], mapper Map2Func[K, V, MK, MV]) iter.Seq2[MK, MV] {
+func MapSeq2[K, V, MK, MV any, F ~func(K, V) (MK, MV)](seq iter.Seq2[K, V], mapper F) iter.Seq2[MK, MV] {
 	return func(yield func(MK, MV) bool) {
 		for key, value := range seq {
 			mk, mv := mapper(key, value)
@@ -38,7 +38,7 @@ func MapSeq2[K, V, MK, MV any](seq iter.Seq2[K, V], mapper Map2Func[K, V, MK, MV
 	}
 }
 
-func FlatMap[U, V any](seq Seq[U], mapper FlatMapFunc[U, V]) Seq[V] {
+func FlatMap[U, V any, F ~func(U) []V](seq Seq[U], mapper F) Seq[V] {
 	remaining := make(chan V, 100)
 	return func() (V, bool) {
 		for len(remaining) == 0 {
@@ -52,7 +52,7 @@ func FlatMap[U, V any](seq Seq[U], mapper FlatMapFunc[U, V]) Seq[V] {
 				break
 			}
 		}
-		if len(remaining) > 0 {
+		for len(remaining) > 0 {
 			return <-remaining, true
 		}
 		close(remaining)
@@ -60,7 +60,7 @@ func FlatMap[U, V any](seq Seq[U], mapper FlatMapFunc[U, V]) Seq[V] {
 	}
 }
 
-func FlatMapSeq[U, V any](seq iter.Seq[U], mapper FlatMapFunc[U, V]) iter.Seq[V] {
+func FlatMapSeq[U, V any, F ~func(U) []V](seq iter.Seq[U], mapper F) iter.Seq[V] {
 	remaining := make(chan V, 100)
 	return func(yield func(V) bool) {
 		for value := range seq {
@@ -74,12 +74,17 @@ func FlatMapSeq[U, V any](seq iter.Seq[U], mapper FlatMapFunc[U, V]) iter.Seq[V]
 				}
 			}
 		}
+		for len(remaining) > 0 {
+			if !yield(<-remaining) {
+				break
+			}
+		}
 		close(remaining)
 	}
 }
 
-func FlatMap2[K, V, MK, MV any](seq Seq2[K, V], mapper FlatMap2Func[K, V, MK, MV]) Seq2[MK, MV] {
-	remaining := make(chan KeyValue[MK, MV], 100)
+func FlatMap2[K, V, MK, MV any, F ~func(K, V) []Pair[MK, MV]](seq Seq2[K, V], mapper F) Seq2[MK, MV] {
+	remaining := make(chan Pair[MK, MV], 100)
 	return func() (MK, MV, bool) {
 		for len(remaining) == 0 {
 			key, value, valid := seq()
@@ -92,17 +97,17 @@ func FlatMap2[K, V, MK, MV any](seq Seq2[K, V], mapper FlatMap2Func[K, V, MK, MV
 				break
 			}
 		}
-		if len(remaining) > 0 {
+		for len(remaining) > 0 {
 			kv := <-remaining
-			return kv.Key, kv.Value, true
+			return kv.A, kv.B, true
 		}
 		close(remaining)
 		return *new(MK), *new(MV), false
 	}
 }
 
-func FlatMapSeq2[K, V, MK, MV any](seq iter.Seq2[K, V], mapper FlatMap2Func[K, V, MK, MV]) iter.Seq2[MK, MV] {
-	remaining := make(chan KeyValue[MK, MV], 100)
+func FlatMapSeq2[K, V, MK, MV any, F ~func(K, V) []Pair[MK, MV]](seq iter.Seq2[K, V], mapper F) iter.Seq2[MK, MV] {
+	remaining := make(chan Pair[MK, MV], 100)
 	return func(yield func(MK, MV) bool) {
 		for key, value := range seq {
 			mapped := mapper(key, value)
@@ -111,9 +116,15 @@ func FlatMapSeq2[K, V, MK, MV any](seq iter.Seq2[K, V], mapper FlatMap2Func[K, V
 			}
 			if len(remaining) > 0 {
 				kv := <-remaining
-				if !yield(kv.Key, kv.Value) {
+				if !yield(kv.A, kv.B) {
 					break
 				}
+			}
+		}
+		for len(remaining) > 0 {
+			kv := <-remaining
+			if !yield(kv.A, kv.B) {
+				break
 			}
 		}
 		close(remaining)

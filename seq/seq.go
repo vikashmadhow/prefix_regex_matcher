@@ -32,11 +32,11 @@ type MapFunc[U, V any] func(U) V
 // It can be applied to values of a sequence through the function seq.Map2.
 type Map2Func[K, V, MK, MV any] func(K, V) (MK, MV)
 
-// KeyValue is a struct holding a key-value pair. This is used by the FlatMap2Func to transform
+// Pair is a struct holding a key-value pair. This is used by the FlatMap2Func to transform
 // a key-value to a sequence of key-value pairs (which are then flattened).
-type KeyValue[K, V any] struct {
-	Key   K
-	Value V
+type Pair[A, B any] struct {
+	A A
+	B B
 }
 
 // FlatMapFunc is a function provided to seq.FlatMap to transform a value of type U to a sequence
@@ -46,7 +46,7 @@ type FlatMapFunc[U, V any] func(U) []V
 // FlatMap2Func is a function provided to seq.FlatMap2 to transform a key-value pair of type (K, V)
 // to a sequence of type (Mk, MV) ([]seq.KeyPair[MK, MV], to be exact). The sequence is then flattened
 // into a Seq2[MK, MV].
-type FlatMap2Func[K, V, MK, MV any] func(K, V) []KeyValue[MK, MV]
+type FlatMap2Func[K, V, MK, MV any] func(K, V) []Pair[MK, MV]
 
 // Push converts an iter.Pull style iterator to the default iterator (push) style.
 func Push[V any](seq Seq[V], stop func()) iter.Seq[V] {

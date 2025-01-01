@@ -755,7 +755,7 @@ func (r *Repeat) ToString() string {
 	return "(" + r.Sentence.ToString() + "){" + strconv.Itoa(r.Min) + "," + strconv.Itoa(r.Max) + "}"
 }
 
-func NewGrammar(name string, tokenTypes []*lexer.TokenType, productions []*Production) *Grammar {
+func New(name string, tokenTypes []*lexer.TokenType, productions []*Production) *Grammar {
 	prodByName := map[string]*Production{}
 	for _, p := range productions {
 		prodByName[p.Name] = p
@@ -824,7 +824,7 @@ func ParseText(g *Grammar, input string) (*SyntaxTree, error) {
 }
 
 func test() {
-	NewGrammar(
+	New(
 		"sqlx",
 		[]*lexer.TokenType{
 			lexer.NewTokenType("LET", "let"),
