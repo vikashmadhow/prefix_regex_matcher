@@ -1,7 +1,6 @@
 package grammar
 
 import (
-	"fmt"
 	"github.com/vikashmadhow/prefix_regex_matcher/lexer"
 	"testing"
 )
