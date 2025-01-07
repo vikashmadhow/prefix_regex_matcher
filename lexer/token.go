@@ -24,16 +24,17 @@ type TokenType struct {
 }
 
 type TokenSeq struct {
-	next       seq.Seq2[Token, error]
-	stop       func()
-	pushedBack []*Token
+	next seq.Seq2[Token, error]
+	stop func()
+	//pushedBack []*Token
+	pushedBack chan *Token
 }
 
 func (t *TokenSeq) Next() (Token, error, bool) {
 	if len(t.pushedBack) > 0 {
-		token := t.pushedBack[len(t.pushedBack)-1]
-		t.pushedBack = t.pushedBack[:len(t.pushedBack)-1]
-		return *token, nil, true
+		//token := <- t.pushedBack[len(t.pushedBack)-1]
+		//t.pushedBack = t.pushedBack[:len(t.pushedBack)-1]
+		return *<-t.pushedBack, nil, true
 	}
 	return t.next()
 }
@@ -43,5 +44,6 @@ func (t *TokenSeq) Stop() {
 }
 
 func (t *TokenSeq) Pushback(token *Token) {
-	t.pushedBack = append(t.pushedBack, token)
+	//t.pushedBack = append(t.pushedBack, token)
+	t.pushedBack <- token
 }

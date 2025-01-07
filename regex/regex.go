@@ -3,28 +3,6 @@
 // Package regex implements a regular expression library that can be
 // supplied with a sequence of characters and will return if the characters at
 // that point is a prefix matching the regular expression.
-//
-// Supports regular expressions conforming to this EBNF definition:
-//
-//	re -> re '|' re
-//	    | re ('*' | '+' | '?')
-//	    | re re
-//	    | '(' re ')'
-//	    | ch
-//
-//	ch -> '[' '^'? (c ['-' c])+ ']'
-//	    | c
-//	    | '\' ('*' | '+' | '?' | '|' | '(' | ')' | '[' | ']')
-//
-//	Refactored to remove left-recursion and ambiguity:
-//	using: A = Aa|B  =>  A  = BA'
-//	                     A' = aA'|e
-//
-//	regex  = term ['|' regex]
-//	term   = { factor }
-//	factor = base [('*' | '+' | '?')]
-//	base   = '(' regex ')'
-//	       | ch
 package regex
 
 import (

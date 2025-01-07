@@ -14,14 +14,10 @@ import (
 )
 
 type Grammar struct {
-	Id              string
-	TokenTypes      []*lexer.TokenType
-	TokenTypeByName map[string]*lexer.TokenType
-	Productions     []*Production
-	ProdByName      map[string]*Production
-
-	//lexerFilters    []seq.Filter2Predicate[lexer.Token, error]
-	//lexerBufferSize int
+	Id          string
+	Lexer       *lexer.Lexer
+	Productions []*Production
+	ProdByName  map[string]*Production
 }
 
 type Production struct {
@@ -34,37 +30,13 @@ type LanguageElement interface {
 	Terminal() bool
 	MatchEmpty(*Grammar) bool
 	First(*Grammar, CycleDetector) (map[string]bool, error)
-	Recognise(*Grammar, *lexer.TokenSeq, CycleDetector) (*SyntaxTree, error)
+	Recognise(*Grammar, LanguageElement, *lexer.TokenSeq, CycleDetector) (*SyntaxTree, error)
 	ToString() string
 }
 
 type Sentence interface {
 	Follow(*Grammar, string, CycleDetector) (map[string]bool, bool, error)
 	LanguageElement
-}
-
-type SyntaxTree struct {
-	Node     LanguageElement
-	Children []*SyntaxTree
-}
-
-func (tree *SyntaxTree) ToGraphViz(title string) string {
-	spec := "digraph G {\n"
-	if len(title) > 0 {
-		spec += "\tlabel=\"" + title + "\"\n"
-	}
-	spec += tree.graphVizNode()
-	spec += "}"
-	return spec
-}
-
-func (tree *SyntaxTree) graphVizNode() string {
-	spec := ""
-	for _, c := range tree.Children {
-		spec += "\t\"" + tree.Node.ToString() + "\" -> \"" + c.Node.ToString() + "\"\n"
-		spec += c.graphVizNode()
-	}
-	return spec
 }
 
 type TokenLanguageElement struct {
@@ -129,23 +101,6 @@ func (c *CycleDetectorSet) remove(a LanguageElement) {
 	delete(c.Seen, a)
 }
 
-/*
-Package sqlx
-
-Lexer:
-	LET:  let
-	INT:  \d+
-	ID:   [_a-zA-Z][_a-zA-Z0-9]
-	EQ:   =
-	PLUS: \+|-
-	TIME: \*|/
-	SPC:  \s+
-
-Grammar:
-	Program: Expr+
-    Expr:    Decl
-*/
-
 // --- TOKEN REFERENCE --- //
 
 func (t *TokenRef) Terminal() bool {
@@ -161,11 +116,11 @@ func (t *TokenRef) Follow(_ *Grammar, _ string, _ CycleDetector) (map[string]boo
 }
 
 func (t *TokenRef) MatchEmpty(g *Grammar) bool {
-	tokenType := g.TokenTypeByName[t.Ref]
+	tokenType := g.Lexer.TokenTypes[t.Ref]
 	return tokenType.Compiled.MatchEmpty()
 }
 
-func (t *TokenRef) Recognise(_ *Grammar, tokens *lexer.TokenSeq, _ CycleDetector) (*SyntaxTree, error) {
+func (t *TokenRef) Recognise(_ *Grammar, _ LanguageElement, tokens *lexer.TokenSeq, _ CycleDetector) (*SyntaxTree, error) {
 	token, err, valid := tokens.Next()
 	if err != nil {
 		return nil, err
@@ -198,11 +153,11 @@ func (t *TokenLanguageElement) Follow(_ *Grammar, _ string, _ CycleDetector) (ma
 }
 
 func (t *TokenLanguageElement) MatchEmpty(g *Grammar) bool {
-	tokenType := g.TokenTypeByName[t.Token.Type]
+	tokenType := g.Lexer.TokenTypes[t.Token.Type]
 	return tokenType.Compiled.MatchEmpty()
 }
 
-func (t *TokenLanguageElement) Recognise(_ *Grammar, tokens *lexer.TokenSeq, _ CycleDetector) (*SyntaxTree, error) {
+func (t *TokenLanguageElement) Recognise(_ *Grammar, _ LanguageElement, tokens *lexer.TokenSeq, _ CycleDetector) (*SyntaxTree, error) {
 	token, err, valid := tokens.Next()
 	if err != nil {
 		return nil, err
@@ -241,13 +196,13 @@ func (p *ProductionRef) Follow(_ *Grammar, _ string, _ CycleDetector) (map[strin
 }
 
 func (p *ProductionRef) MatchEmpty(g *Grammar) bool {
-	tokenType := g.TokenTypeByName[p.Ref]
-	return tokenType.Compiled.MatchEmpty()
+	prod := g.ProdByName[p.Ref]
+	return prod.MatchEmpty(g)
 }
 
-func (p *ProductionRef) Recognise(g *Grammar, tokens *lexer.TokenSeq, cd CycleDetector) (*SyntaxTree, error) {
-	production := g.ProdByName[p.Ref]
-	return production.Sentence.Recognise(g, tokens, cd)
+func (p *ProductionRef) Recognise(g *Grammar, production LanguageElement, tokens *lexer.TokenSeq, cd CycleDetector) (*SyntaxTree, error) {
+	prod := g.ProdByName[p.Ref]
+	return prod.Recognise(g, production, tokens, cd)
 }
 
 func (p *ProductionRef) ToString() string {
@@ -333,17 +288,17 @@ func peek(tokens *lexer.TokenSeq) (*lexer.Token, error) {
 	return token, nil
 }
 
-func (p *Production) Recognise(g *Grammar, tokens *lexer.TokenSeq, cd CycleDetector) (*SyntaxTree, error) {
+func (p *Production) Recognise(g *Grammar, _ LanguageElement, tokens *lexer.TokenSeq, cd CycleDetector) (*SyntaxTree, error) {
 	token, err := peek(tokens)
 	if err != nil {
 		return nil, err
 	}
-	first, err := p.First(g, nil)
+	first, err := p.First(g, cd)
 	if err != nil {
 		return nil, err
 	}
 	if _, ok := first[token.Type]; ok {
-		return p.Sentence.Recognise(g, tokens, cd)
+		return p.Sentence.Recognise(g, p, tokens, cd)
 	} else if p.Sentence.MatchEmpty(g) {
 		follow, err := p.Follow(g, cd)
 		if err != nil {
@@ -412,7 +367,7 @@ func (c *Choice) MatchEmpty(g *Grammar) bool {
 	return false
 }
 
-func (c *Choice) Recognise(g *Grammar, tokens *lexer.TokenSeq, cd CycleDetector) (*SyntaxTree, error) {
+func (c *Choice) Recognise(g *Grammar, production LanguageElement, tokens *lexer.TokenSeq, cd CycleDetector) (*SyntaxTree, error) {
 	token, err := peek(tokens)
 	if err != nil {
 		return nil, err
@@ -428,12 +383,11 @@ func (c *Choice) Recognise(g *Grammar, tokens *lexer.TokenSeq, cd CycleDetector)
 			alternate = a
 			break
 		}
-		tokens.Pushback(token)
 	}
 	if alternate == nil {
 		return nil, fmt.Errorf("no alternates found for choice %q on token %q", c.ToString(), token.Type)
 	}
-	return alternate.Recognise(g, tokens, cd)
+	return alternate.Recognise(g, production, tokens, cd)
 }
 
 func (c *Choice) ToString() string {
@@ -519,8 +473,8 @@ func (s *Sequence) MatchEmpty(g *Grammar) bool {
 	return true
 }
 
-func (s *Sequence) Recognise(g *Grammar, tokens *lexer.TokenSeq, cd CycleDetector) (*SyntaxTree, error) {
-	tree := SyntaxTree{s, nil}
+func (s *Sequence) Recognise(g *Grammar, production LanguageElement, tokens *lexer.TokenSeq, cd CycleDetector) (*SyntaxTree, error) {
+	tree := SyntaxTree{production, nil}
 	for _, e := range s.Elements {
 		token, err := peek(tokens)
 		if err != nil {
@@ -531,7 +485,7 @@ func (s *Sequence) Recognise(g *Grammar, tokens *lexer.TokenSeq, cd CycleDetecto
 			return nil, err
 		}
 		if _, ok := first[token.Type]; ok {
-			child, err := e.Recognise(g, tokens, cd)
+			child, err := e.Recognise(g, production, tokens, cd)
 			if err != nil {
 				return nil, err
 			}
@@ -540,7 +494,11 @@ func (s *Sequence) Recognise(g *Grammar, tokens *lexer.TokenSeq, cd CycleDetecto
 			return nil, fmt.Errorf("token %q cannot start %q", token.Type, e.ToString())
 		}
 	}
-	return &tree, nil
+	if len(tree.Children) == 1 {
+		return tree.Children[0], nil
+	} else {
+		return &tree, nil
+	}
 }
 
 func (s *Sequence) ToString() string {
@@ -579,7 +537,7 @@ func (o *Optional) MatchEmpty(*Grammar) bool {
 	return true
 }
 
-func (o *Optional) Recognise(g *Grammar, tokens *lexer.TokenSeq, cd CycleDetector) (*SyntaxTree, error) {
+func (o *Optional) Recognise(g *Grammar, production LanguageElement, tokens *lexer.TokenSeq, cd CycleDetector) (*SyntaxTree, error) {
 	token, err := peek(tokens)
 	if err != nil {
 		return nil, err
@@ -589,7 +547,7 @@ func (o *Optional) Recognise(g *Grammar, tokens *lexer.TokenSeq, cd CycleDetecto
 		return nil, err
 	}
 	if _, ok := first[token.Type]; ok {
-		return o.Sentence.Recognise(g, tokens, cd)
+		return o.Sentence.Recognise(g, production, tokens, cd)
 	} else if !o.Sentence.MatchEmpty(g) {
 		return nil, fmt.Errorf("token %q cannot start %q", token.Type, o.Sentence.ToString())
 	}
@@ -618,12 +576,12 @@ func (o *ZeroOrMore) MatchEmpty(*Grammar) bool {
 	return true
 }
 
-func (o *ZeroOrMore) Recognise(g *Grammar, tokens *lexer.TokenSeq, cd CycleDetector) (*SyntaxTree, error) {
+func (o *ZeroOrMore) Recognise(g *Grammar, production LanguageElement, tokens *lexer.TokenSeq, cd CycleDetector) (*SyntaxTree, error) {
 	first, err := o.Sentence.First(g, cd)
 	if err != nil {
 		return nil, err
 	}
-	tree := SyntaxTree{o, nil}
+	tree := SyntaxTree{production, nil}
 	matchedOnce := false
 	for {
 		token, err := peek(tokens)
@@ -632,7 +590,7 @@ func (o *ZeroOrMore) Recognise(g *Grammar, tokens *lexer.TokenSeq, cd CycleDetec
 		}
 		if _, ok := first[token.Type]; ok {
 			matchedOnce = true
-			child, err := o.Sentence.Recognise(g, tokens, cd)
+			child, err := o.Sentence.Recognise(g, production, tokens, cd)
 			if err != nil {
 				return nil, err
 			}
@@ -670,12 +628,12 @@ func (o *OneOrMore) MatchEmpty(g *Grammar) bool {
 	return o.Sentence.MatchEmpty(g)
 }
 
-func (o *OneOrMore) Recognise(g *Grammar, tokens *lexer.TokenSeq, cd CycleDetector) (*SyntaxTree, error) {
+func (o *OneOrMore) Recognise(g *Grammar, production LanguageElement, tokens *lexer.TokenSeq, cd CycleDetector) (*SyntaxTree, error) {
 	first, err := o.Sentence.First(g, cd)
 	if err != nil {
 		return nil, err
 	}
-	tree := SyntaxTree{o, nil}
+	tree := SyntaxTree{production, nil}
 	matchedOnce := false
 	for {
 		token, err := peek(tokens)
@@ -684,7 +642,7 @@ func (o *OneOrMore) Recognise(g *Grammar, tokens *lexer.TokenSeq, cd CycleDetect
 		}
 		if _, ok := first[token.Type]; ok {
 			matchedOnce = true
-			child, err := o.Sentence.Recognise(g, tokens, cd)
+			child, err := o.Sentence.Recognise(g, production, tokens, cd)
 			if err != nil {
 				return nil, err
 			}
@@ -722,12 +680,12 @@ func (r *Repeat) MatchEmpty(g *Grammar) bool {
 	return r.Min == 0 || r.Sentence.MatchEmpty(g)
 }
 
-func (r *Repeat) Recognise(g *Grammar, tokens *lexer.TokenSeq, cd CycleDetector) (*SyntaxTree, error) {
+func (r *Repeat) Recognise(g *Grammar, production LanguageElement, tokens *lexer.TokenSeq, cd CycleDetector) (*SyntaxTree, error) {
 	first, err := r.Sentence.First(g, cd)
 	if err != nil {
 		return nil, err
 	}
-	tree := SyntaxTree{r, nil}
+	tree := SyntaxTree{production, nil}
 
 	for matched := 0; matched < r.Max; matched++ {
 		token, err := peek(tokens)
@@ -735,7 +693,7 @@ func (r *Repeat) Recognise(g *Grammar, tokens *lexer.TokenSeq, cd CycleDetector)
 			return nil, err
 		}
 		if _, ok := first[token.Type]; ok {
-			child, err := r.Sentence.Recognise(g, tokens, cd)
+			child, err := r.Sentence.Recognise(g, production, tokens, cd)
 			if err != nil {
 				return nil, err
 			}
@@ -755,23 +713,24 @@ func (r *Repeat) ToString() string {
 	return "(" + r.Sentence.ToString() + "){" + strconv.Itoa(r.Min) + "," + strconv.Itoa(r.Max) + "}"
 }
 
-func New(name string, tokenTypes []*lexer.TokenType, productions []*Production) *Grammar {
+func New(name string, l *lexer.Lexer, productions []*Production) *Grammar {
 	prodByName := map[string]*Production{}
 	for _, p := range productions {
 		prodByName[p.Name] = p
 	}
 
-	tokenTypeByName := map[string]*lexer.TokenType{}
-	for _, t := range tokenTypes {
-		tokenTypeByName[t.Id] = t
-	}
+	//tokenTypeByName := map[string]*lexer.TokenType{}
+	//for _, t := range tokenTypes {
+	//	tokenTypeByName[t.Id] = t
+	//}
 
 	return &Grammar{
-		Id:              name,
-		TokenTypes:      tokenTypes,
-		TokenTypeByName: tokenTypeByName,
-		Productions:     productions,
-		ProdByName:      prodByName,
+		Id:    name,
+		Lexer: l,
+		//TokenTypes:      tokenTypes,
+		//TokenTypeByName: tokenTypeByName,
+		Productions: productions,
+		ProdByName:  prodByName,
 	}
 
 	/*
@@ -797,16 +756,16 @@ func New(name string, tokenTypes []*lexer.TokenType, productions []*Production) 
 	*/
 }
 
-func Parse(g *Grammar, input io.Reader) (*SyntaxTree, error) {
-	l := lexer.New(g.TokenTypes...)
-	tokenSeq := l.Lex(input)
+func (g *Grammar) Parse(input io.Reader) (*SyntaxTree, error) {
+	//l := lexer.New(g.TokenTypes...)
+	tokenSeq := g.Lexer.Lex(input)
 	defer tokenSeq.Stop()
 	prod := g.Productions[0]
 	cd := &CycleDetectorSet{make(map[LanguageElement]bool)}
-	return prod.Recognise(g, tokenSeq, cd)
+	return prod.Recognise(g, prod, tokenSeq, cd)
 }
 
-func ParseFile(g *Grammar, filename string) (*SyntaxTree, error) {
+func (g *Grammar) ParseFile(filename string) (*SyntaxTree, error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil, err
@@ -816,35 +775,9 @@ func ParseFile(g *Grammar, filename string) (*SyntaxTree, error) {
 			panic(err)
 		}
 	}()
-	return Parse(g, file)
+	return g.Parse(file)
 }
 
-func ParseText(g *Grammar, input string) (*SyntaxTree, error) {
-	return Parse(g, strings.NewReader(input))
-}
-
-func test() {
-	New(
-		"sqlx",
-		[]*lexer.TokenType{
-			lexer.NewTokenType("LET", "let"),
-			lexer.NewTokenType("INT", "\\d+"),
-			lexer.NewTokenType("ID", "[_a-zA-Z][_a-zA-Z0-9]*"),
-			lexer.NewTokenType("EQ", "="),
-			lexer.NewTokenType("PLUS", "\\+|-"),
-			lexer.NewTokenType("TIME", "\\*|/"),
-			lexer.NewTokenType("SPC", "\\s+"),
-			lexer.SimpleTokenType("("),
-		},
-		[]*Production{{
-			Name: "S",
-			Sentence: &Choice{Alternates: []Sentence{
-				&Sequence{Elements: []Sentence{
-					&TokenRef{"INT"},
-					&ProductionRef{"F"},
-					&ZeroOrMore{&Sequence{Elements: []Sentence{&TokenRef{"X"}}}},
-				}}},
-			}},
-		},
-	)
+func (g *Grammar) ParseText(input string) (*SyntaxTree, error) {
+	return g.Parse(strings.NewReader(input))
 }

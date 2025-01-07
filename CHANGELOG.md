@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3] - 2025-01-06
+- Using a channel for holding push-backed tokens in `TokenSeq` instead of a slice
+  to improve performance.
+- Graphviz representation of `SyntaxTree`.
+- Mapping functions documented.
+- First working grammar parser of a simple test program.
+
 ## [0.2.2] - 2025-01-01
 - Improvement to type definition of `Modulator`, `filter`, `map` and `flatMap`.
 - `filter`, `map` and `flatMap` can now work with type aliases of the predicate and

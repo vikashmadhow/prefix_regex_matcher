@@ -1,5 +1,27 @@
 // author: Vikash Madhow (vikash.madhow@gmail.com)
 
+// Parses regular expression to this grammar:
+//
+//	re -> re '|' re
+//	    | re ('*' | '+' | '?')
+//	    | re re
+//	    | '(' re ')'
+//	    | ch
+//
+//	ch -> '[' '^'? (c ['-' c])+ ']'
+//	    | c
+//	    | '\' ('*' | '+' | '?' | '|' | '(' | ')' | '[' | ']')
+//
+//	Refactored to remove left-recursion and ambiguity:
+//	using: A = Aa|B  =>  A  = BA'
+//	                     A' = aA'|e
+//
+//	regex  = term ['|' regex]
+//	term   = { factor }
+//	factor = base [('*' | '+' | '?')]
+//	base   = '(' regex ')'
+//	       | ch
+
 package regex
 
 import (

@@ -9,12 +9,12 @@ import (
 // takes a token and maps it to a sequence of tokens. Mapping to an empty sequence
 // (or nil) removes the token from the stream. Otherwise, the mapped sequence of tokens
 // is merged into the token stream. This is similar to a flat-map operation on the token
-// stream. Multiple modulators can be set on a lexer and they are invoked in the same the
+// stream. Multiple modulators can be set on a lexer and they are invoked in the same
 // order that they were installed.
 type Modulator func(Token, error) []seq.Pair[Token, error]
 
-// Ignore is a Modulator that removes the specified token types from the token
-// stream. It is useful to remove syntactically useless tokens such as whitespace.
+// Ignore is a Modulator that removes the specified token types from the token stream.
+// It is useful to remove syntactically useless tokens in some languages such as whitespace.
 func Ignore(types ...string) Modulator {
 	ignore := map[string]bool{}
 	for _, t := range types {
@@ -23,9 +23,8 @@ func Ignore(types ...string) Modulator {
 	return func(t Token, e error) []seq.Pair[Token, error] {
 		if _, ok := ignore[t.Type]; ok {
 			return nil
-		} else {
-			return []seq.Pair[Token, error]{{t, e}}
 		}
+		return []seq.Pair[Token, error]{{t, e}}
 	}
 }
 

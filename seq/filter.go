@@ -33,7 +33,7 @@ func FilterSeq[V any, F ~func(V) bool](seq iter.Seq[V], predicate F) iter.Seq[V]
 }
 
 // Filter2 is the Filter function designed to work on the 2-elements version of the
-// pull-style version of iter.Seq.
+// pull-style version of iter.Seq2.
 func Filter2[K, V any, F ~func(K, V) bool](seq Seq2[K, V], predicate F) Seq2[K, V] {
 	return func() (K, V, bool) {
 		for {

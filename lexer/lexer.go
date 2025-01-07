@@ -17,9 +17,10 @@ import (
 
 type Lexer struct {
 	Definition []*TokenType
+	TokenTypes map[string]*TokenType
 	matchers   []*tokenMatcher
-	bufferSize int
 	modulators []Modulator
+	bufferSize int
 }
 
 type tokenMatcher struct {
@@ -43,7 +44,11 @@ func New(definition ...*TokenType) *Lexer {
 		}
 		matchers = append(matchers, &tokenMatcher{d, d.Compiled.Matcher()})
 	}
-	return &Lexer{definition, matchers, 1024, nil}
+	tokenTypes := make(map[string]*TokenType)
+	for _, d := range definition {
+		tokenTypes[d.Id] = d
+	}
+	return &Lexer{definition, tokenTypes, matchers, nil, 1024}
 }
 
 func (lexer *Lexer) Buffer(size int) {
@@ -69,7 +74,11 @@ func (lexer *Lexer) Lex(in io.Reader) *TokenSeq {
 			next = seq.FlatMap2(next, m)
 		}
 	}
-	return &TokenSeq{next: next, stop: stop}
+	return &TokenSeq{
+		next:       next,
+		stop:       stop,
+		pushedBack: make(chan *Token, 64),
+	}
 }
 
 func (lexer *Lexer) LexSeq(in io.Reader) iter.Seq2[Token, error] {
