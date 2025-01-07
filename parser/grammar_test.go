@@ -45,24 +45,24 @@ func testGrammar() *Grammar {
 		[]*Production{
 			{
 				Name:     "Program",
-				Sentence: &OneOrMore{&ProductionRef{"Stmt"}},
+				Sentence: &OneOrMore{&ProductionRef{"Stmt", Retain}, Retain},
 			},
 			{
 				Name: "Stmt",
 				Sentence: &Choice{
 					Alternates: []Sentence{
 						&Sequence{Elements: []Sentence{
-							&TokenRef{"LET"},
-							&TokenRef{"ID"},
-							&TokenRef{":="},
-							&ProductionRef{"Expr"},
-							&TokenRef{";"},
+							&TokenRef{"LET", Promote},
+							&TokenRef{"ID", Retain},
+							&TokenRef{":=", Drop},
+							&ProductionRef{"Expr", Retain},
+							&TokenRef{";", Drop},
 						}},
 						&Sequence{Elements: []Sentence{
-							&TokenRef{"ID"},
-							&TokenRef{"="},
-							&ProductionRef{"Expr"},
-							&TokenRef{";"},
+							&TokenRef{"ID", Retain},
+							&TokenRef{"=", Promote},
+							&ProductionRef{"Expr", Retain},
+							&TokenRef{";", Drop},
 						}},
 					},
 				},
@@ -70,43 +70,42 @@ func testGrammar() *Grammar {
 			{
 				Name: "Expr",
 				Sentence: &Sequence{Elements: []Sentence{
-					&ProductionRef{"Term"},
+					&ProductionRef{"Term", Retain},
 					&Optional{&Sequence{
 						Elements: []Sentence{
-							&TokenRef{"ADD"},
-							&ProductionRef{"Expr"},
-						},
-					}},
+							&TokenRef{"ADD", Retain},
+							&ProductionRef{"Expr", Retain},
+						}, TreeRetention: Retain,
+					}, Retain},
 				}},
 			},
 			{
 				Name:     "Term",
-				Sentence: &OneOrMore{&ProductionRef{"Factor"}},
+				Sentence: &OneOrMore{&ProductionRef{"Factor", Retain}, Retain},
 			},
 			{
 				Name: "Factor",
 				Sentence: &Sequence{Elements: []Sentence{
-					&ProductionRef{"Base"},
+					&ProductionRef{"Base", Retain},
 					&Optional{&Sequence{
 						Elements: []Sentence{
-							&TokenRef{"MUL"},
-							&ProductionRef{"Expr"},
-						},
-					}},
+							&TokenRef{"MUL", Retain},
+							&ProductionRef{"Expr", Retain},
+						}, TreeRetention: Retain,
+					}, Retain},
 				}},
 			},
 			{
 				Name: "Base",
 				Sentence: &Choice{Alternates: []Sentence{
 					&Sequence{Elements: []Sentence{
-						&TokenRef{"("},
-						&ProductionRef{"Expr"},
-						&TokenRef{")"},
+						&TokenRef{"(", Retain},
+						&ProductionRef{"Expr", Retain},
+						&TokenRef{")", Retain},
 					}},
-					&TokenRef{"INT"},
-					&TokenRef{"ID"},
-				},
-				},
+					&TokenRef{"INT", Retain},
+					&TokenRef{"ID", Retain},
+				}},
 			},
 		},
 	)

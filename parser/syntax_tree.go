@@ -4,6 +4,19 @@ import (
 	"strconv"
 )
 
+// TreeRetention defines whether a language element is kept in the SyntaxTree
+// and where it is positioned. It has 3 values:
+//  1. Retain: kept in the syntax tree at the default position;
+//  2. Drop: not kept in the syntax tree;
+//  3. Promote: the language element is promoted to the parent position in the tree.
+type TreeRetention int
+
+const (
+	Retain TreeRetention = iota
+	Drop
+	Promote
+)
+
 type SyntaxTree struct {
 	Node     LanguageElement
 	Children []*SyntaxTree
@@ -14,18 +27,18 @@ func (tree *SyntaxTree) ToGraphViz(title string) string {
 	if len(title) > 0 {
 		spec += "\tlabel=\"" + title + "\"\n"
 	}
-	spec += tree.graphVizNode(1, "0")
+	spec += tree.graphVizNode("0")
 	spec += "}"
 	return spec
 }
 
-func (tree *SyntaxTree) graphVizNode(level int, position string) string {
+func (tree *SyntaxTree) graphVizNode(position string) string {
 	spec := ""
 	for i, c := range tree.Children {
-		pos := position + "/" + strconv.Itoa(i)
-		spec += "\t\"" + tree.Node.ToString() + " [" + strconv.Itoa(level-1) + ":" + position + "]" +
-			"\" -> \"" + c.Node.ToString() + " [" + strconv.Itoa(level) + ":" + pos + "]" + "\"\n"
-		spec += c.graphVizNode(level+1, pos)
+		pos := position + strconv.Itoa(i)
+		spec += "\t\"" + tree.Node.ToString() + " [" + position + "]" +
+			"\" -> \"" + c.Node.ToString() + " [" + pos + "]" + "\"\n"
+		spec += c.graphVizNode(pos)
 	}
 	return spec
 }

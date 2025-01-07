@@ -9,6 +9,7 @@ import (
 	"io"
 	"maps"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -21,16 +22,22 @@ type Grammar struct {
 }
 
 type Production struct {
-	Name     string
-	Sentence Sentence
-	follow   map[string]bool
+	Name          string
+	Sentence      Sentence
+	TreeRetention TreeRetention
+	follow        map[string]bool
 }
 
 type LanguageElement interface {
 	Terminal() bool
 	MatchEmpty(*Grammar) bool
 	First(*Grammar, CycleDetector) (map[string]bool, error)
+
 	Recognise(*Grammar, LanguageElement, *lexer.TokenSeq, CycleDetector) (*SyntaxTree, error)
+
+	Retention() TreeRetention
+	SetRetention(TreeRetention)
+
 	ToString() string
 }
 
@@ -40,65 +47,58 @@ type Sentence interface {
 }
 
 type TokenLanguageElement struct {
-	Token *lexer.Token
+	Token         *lexer.Token
+	TreeRetention TreeRetention
 }
 
 type TokenRef struct {
-	Ref string
+	Ref           string
+	TreeRetention TreeRetention
 }
 
 type ProductionRef struct {
-	Ref string
+	Ref           string
+	TreeRetention TreeRetention
 }
 
 type Sequence struct {
-	Elements []Sentence
-	first    map[string]bool
+	Elements      []Sentence
+	TreeRetention TreeRetention
+	first         map[string]bool
 }
 
 type Choice struct {
-	Alternates []Sentence
-	first      map[string]bool
+	Alternates    []Sentence
+	TreeRetention TreeRetention
+	first         map[string]bool
 }
 
 type Optional struct {
-	Sentence Sentence
+	Sentence      Sentence
+	TreeRetention TreeRetention
 }
 
 type ZeroOrMore struct {
-	Sentence Sentence
+	Sentence      Sentence
+	TreeRetention TreeRetention
 }
 
 type OneOrMore struct {
-	Sentence Sentence
+	Sentence      Sentence
+	TreeRetention TreeRetention
 }
 
 type Repeat struct {
-	Min, Max int
-	Sentence Sentence
-	first    map[string]bool
-	follow   map[string]bool
+	Min, Max      int
+	Sentence      Sentence
+	TreeRetention TreeRetention
+	first         map[string]bool
+	follow        map[string]bool
 }
 
 type CycleDetector interface {
 	add(LanguageElement) error
 	remove(LanguageElement)
-}
-
-type CycleDetectorSet struct {
-	Seen map[LanguageElement]bool
-}
-
-func (c *CycleDetectorSet) add(a LanguageElement) error {
-	if _, ok := c.Seen[a]; ok {
-		return errors.New("cycle detected containing " + a.ToString())
-	}
-	c.Seen[a] = true
-	return nil
-}
-
-func (c *CycleDetectorSet) remove(a LanguageElement) {
-	delete(c.Seen, a)
 }
 
 // --- TOKEN REFERENCE --- //
@@ -121,17 +121,22 @@ func (t *TokenRef) MatchEmpty(g *Grammar) bool {
 }
 
 func (t *TokenRef) Recognise(_ *Grammar, _ LanguageElement, tokens *lexer.TokenSeq, _ CycleDetector) (*SyntaxTree, error) {
-	token, err, valid := tokens.Next()
+	token, err := tokens.Next()
 	if err != nil {
 		return nil, err
 	}
-	if !valid {
-		return nil, errors.New("")
-	}
 	if t.Ref == token.Type {
-		return &SyntaxTree{&TokenLanguageElement{&token}, nil}, nil
+		return &SyntaxTree{&TokenLanguageElement{token, t.Retention()}, nil}, nil
 	}
 	return nil, errors.New("token type " + token.Type + " does not match expected type " + t.Ref)
+}
+
+func (t *TokenRef) Retention() TreeRetention {
+	return t.TreeRetention
+}
+
+func (t *TokenRef) SetRetention(tr TreeRetention) {
+	t.TreeRetention = tr
 }
 
 func (t *TokenRef) ToString() string {
@@ -158,21 +163,27 @@ func (t *TokenLanguageElement) MatchEmpty(g *Grammar) bool {
 }
 
 func (t *TokenLanguageElement) Recognise(_ *Grammar, _ LanguageElement, tokens *lexer.TokenSeq, _ CycleDetector) (*SyntaxTree, error) {
-	token, err, valid := tokens.Next()
+	token, err := tokens.Next()
 	if err != nil {
 		return nil, err
 	}
-	if !valid {
-		return nil, errors.New("")
-	}
 	if t.Token.Type == token.Type {
-		return &SyntaxTree{&TokenLanguageElement{&token}, nil}, nil
+		return &SyntaxTree{&TokenLanguageElement{token, t.Retention()}, nil}, nil
 	}
 	return nil, errors.New("token type " + token.Type + " does not match expected type " + t.Token.Type)
 }
 
+func (t *TokenLanguageElement) Retention() TreeRetention {
+	return t.TreeRetention
+}
+
+func (t *TokenLanguageElement) SetRetention(tr TreeRetention) {
+	t.TreeRetention = tr
+}
+
 func (t *TokenLanguageElement) ToString() string {
-	return fmt.Sprint(*t.Token)
+	//return fmt.Sprint(*t.Token)
+	return t.Token.Text
 }
 
 // --- Production reference (in a sentence) --- //
@@ -203,6 +214,14 @@ func (p *ProductionRef) MatchEmpty(g *Grammar) bool {
 func (p *ProductionRef) Recognise(g *Grammar, production LanguageElement, tokens *lexer.TokenSeq, cd CycleDetector) (*SyntaxTree, error) {
 	prod := g.ProdByName[p.Ref]
 	return prod.Recognise(g, production, tokens, cd)
+}
+
+func (p *ProductionRef) Retention() TreeRetention {
+	return p.TreeRetention
+}
+
+func (p *ProductionRef) SetRetention(tr TreeRetention) {
+	p.TreeRetention = tr
 }
 
 func (p *ProductionRef) ToString() string {
@@ -268,28 +287,8 @@ func (p *Production) MatchEmpty(g *Grammar) bool {
 	return p.Sentence.MatchEmpty(g)
 }
 
-func next(tokens *lexer.TokenSeq) (*lexer.Token, error) {
-	token, err, valid := tokens.Next()
-	if err != nil {
-		return nil, err
-	}
-	if !valid {
-		return nil, errors.New("lexer returned an invalid token")
-	}
-	return &token, nil
-}
-
-func peek(tokens *lexer.TokenSeq) (*lexer.Token, error) {
-	token, err := next(tokens)
-	if err != nil {
-		return nil, err
-	}
-	tokens.Pushback(token)
-	return token, nil
-}
-
 func (p *Production) Recognise(g *Grammar, _ LanguageElement, tokens *lexer.TokenSeq, cd CycleDetector) (*SyntaxTree, error) {
-	token, err := peek(tokens)
+	token, err := tokens.Peek()
 	if err != nil {
 		return nil, err
 	}
@@ -314,8 +313,16 @@ func (p *Production) Recognise(g *Grammar, _ LanguageElement, tokens *lexer.Toke
 	}
 }
 
+func (p *Production) Retention() TreeRetention {
+	return p.TreeRetention
+}
+
+func (p *Production) SetRetention(tr TreeRetention) {
+	p.TreeRetention = tr
+}
+
 func (p *Production) ToString() string {
-	return p.Name + ": " + p.Sentence.ToString()
+	return p.Name // + ": " + p.Sentence.ToString()
 }
 
 // --- Choice --- //
@@ -368,7 +375,7 @@ func (c *Choice) MatchEmpty(g *Grammar) bool {
 }
 
 func (c *Choice) Recognise(g *Grammar, production LanguageElement, tokens *lexer.TokenSeq, cd CycleDetector) (*SyntaxTree, error) {
-	token, err := peek(tokens)
+	token, err := tokens.Peek()
 	if err != nil {
 		return nil, err
 	}
@@ -388,6 +395,14 @@ func (c *Choice) Recognise(g *Grammar, production LanguageElement, tokens *lexer
 		return nil, fmt.Errorf("no alternates found for choice %q on token %q", c.ToString(), token.Type)
 	}
 	return alternate.Recognise(g, production, tokens, cd)
+}
+
+func (c *Choice) Retention() TreeRetention {
+	return c.TreeRetention
+}
+
+func (c *Choice) SetRetention(tr TreeRetention) {
+	c.TreeRetention = tr
 }
 
 func (c *Choice) ToString() string {
@@ -476,7 +491,7 @@ func (s *Sequence) MatchEmpty(g *Grammar) bool {
 func (s *Sequence) Recognise(g *Grammar, production LanguageElement, tokens *lexer.TokenSeq, cd CycleDetector) (*SyntaxTree, error) {
 	tree := SyntaxTree{production, nil}
 	for _, e := range s.Elements {
-		token, err := peek(tokens)
+		token, err := tokens.Peek()
 		if err != nil {
 			return nil, err
 		}
@@ -489,7 +504,17 @@ func (s *Sequence) Recognise(g *Grammar, production LanguageElement, tokens *lex
 			if err != nil {
 				return nil, err
 			}
-			tree.Children = append(tree.Children, child)
+			if child.Node.Retention() == Retain {
+				tree.Children = append(tree.Children, child)
+			} else if child.Node.Retention() == Promote {
+				//    t  		         y
+				//  x   y     -->      x a b
+				//     a  b
+				newTree := *child
+				newTree.Node.SetRetention(Retain)
+				newTree.Children = slices.Concat(tree.Children, newTree.Children)
+				tree = newTree
+			}
 		} else if !e.MatchEmpty(g) {
 			return nil, fmt.Errorf("token %q cannot start %q", token.Type, e.ToString())
 		}
@@ -499,6 +524,14 @@ func (s *Sequence) Recognise(g *Grammar, production LanguageElement, tokens *lex
 	} else {
 		return &tree, nil
 	}
+}
+
+func (s *Sequence) Retention() TreeRetention {
+	return s.TreeRetention
+}
+
+func (s *Sequence) SetRetention(tr TreeRetention) {
+	s.TreeRetention = tr
 }
 
 func (s *Sequence) ToString() string {
@@ -538,7 +571,7 @@ func (o *Optional) MatchEmpty(*Grammar) bool {
 }
 
 func (o *Optional) Recognise(g *Grammar, production LanguageElement, tokens *lexer.TokenSeq, cd CycleDetector) (*SyntaxTree, error) {
-	token, err := peek(tokens)
+	token, err := tokens.Peek()
 	if err != nil {
 		return nil, err
 	}
@@ -552,6 +585,14 @@ func (o *Optional) Recognise(g *Grammar, production LanguageElement, tokens *lex
 		return nil, fmt.Errorf("token %q cannot start %q", token.Type, o.Sentence.ToString())
 	}
 	return nil, nil
+}
+
+func (o *Optional) Retention() TreeRetention {
+	return o.TreeRetention
+}
+
+func (o *Optional) SetRetention(tr TreeRetention) {
+	o.TreeRetention = tr
 }
 
 func (o *Optional) ToString() string {
@@ -584,7 +625,7 @@ func (o *ZeroOrMore) Recognise(g *Grammar, production LanguageElement, tokens *l
 	tree := SyntaxTree{production, nil}
 	matchedOnce := false
 	for {
-		token, err := peek(tokens)
+		token, err := tokens.Peek()
 		if err != nil {
 			return nil, err
 		}
@@ -604,6 +645,14 @@ func (o *ZeroOrMore) Recognise(g *Grammar, production LanguageElement, tokens *l
 		}
 	}
 	return &tree, nil
+}
+
+func (o *ZeroOrMore) Retention() TreeRetention {
+	return o.TreeRetention
+}
+
+func (o *ZeroOrMore) SetRetention(tr TreeRetention) {
+	o.TreeRetention = tr
 }
 
 func (o *ZeroOrMore) ToString() string {
@@ -636,7 +685,7 @@ func (o *OneOrMore) Recognise(g *Grammar, production LanguageElement, tokens *le
 	tree := SyntaxTree{production, nil}
 	matchedOnce := false
 	for {
-		token, err := peek(tokens)
+		token, err := tokens.Peek()
 		if err != nil {
 			return nil, err
 		}
@@ -656,6 +705,14 @@ func (o *OneOrMore) Recognise(g *Grammar, production LanguageElement, tokens *le
 		}
 	}
 	return &tree, nil
+}
+
+func (o *OneOrMore) Retention() TreeRetention {
+	return o.TreeRetention
+}
+
+func (o *OneOrMore) SetRetention(tr TreeRetention) {
+	o.TreeRetention = tr
 }
 
 func (o *OneOrMore) ToString() string {
@@ -688,7 +745,7 @@ func (r *Repeat) Recognise(g *Grammar, production LanguageElement, tokens *lexer
 	tree := SyntaxTree{production, nil}
 
 	for matched := 0; matched < r.Max; matched++ {
-		token, err := peek(tokens)
+		token, err := tokens.Peek()
 		if err != nil {
 			return nil, err
 		}
@@ -709,6 +766,14 @@ func (r *Repeat) Recognise(g *Grammar, production LanguageElement, tokens *lexer
 	return &tree, nil
 }
 
+func (r *Repeat) Retention() TreeRetention {
+	return r.TreeRetention
+}
+
+func (r *Repeat) SetRetention(tr TreeRetention) {
+	r.TreeRetention = tr
+}
+
 func (r *Repeat) ToString() string {
 	return "(" + r.Sentence.ToString() + "){" + strconv.Itoa(r.Min) + "," + strconv.Itoa(r.Max) + "}"
 }
@@ -719,16 +784,9 @@ func New(name string, l *lexer.Lexer, productions []*Production) *Grammar {
 		prodByName[p.Name] = p
 	}
 
-	//tokenTypeByName := map[string]*lexer.TokenType{}
-	//for _, t := range tokenTypes {
-	//	tokenTypeByName[t.Id] = t
-	//}
-
 	return &Grammar{
-		Id:    name,
-		Lexer: l,
-		//TokenTypes:      tokenTypes,
-		//TokenTypeByName: tokenTypeByName,
+		Id:          name,
+		Lexer:       l,
 		Productions: productions,
 		ProdByName:  prodByName,
 	}

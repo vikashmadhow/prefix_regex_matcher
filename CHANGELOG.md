@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.4] - 2025-01-07
+- `LanguageElement` can now return a `TreeRetention` value of `Retain`, `Drop` or
+  `Promote`, whereby the element will be retained in the `SyntaxTree`, removed from
+  it, or promoted to its parent (replacing it), respectively, by the grammar parser.
+  This allows the parser to generate smaller trees that are easier to analyse and
+  restructure by downstream components.
+
 ## [0.2.3] - 2025-01-06
 - Using a channel for holding push-backed tokens in `TokenSeq` instead of a slice
   to improve performance.
