@@ -21,7 +21,6 @@ type Lexer struct {
 	matchers   []*tokenMatcher
 	modulators []Modulator
 	bufferSize int
-	modulators []seq.FlatMap2Func[Token, error, Token, error]
 }
 
 type tokenMatcher struct {
