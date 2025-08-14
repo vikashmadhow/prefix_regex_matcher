@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.2.5] - 2025-08-14
+- Basic parser implementation.
+
 ## [0.2.4] - 2025-01-07
 - `LanguageElement` can now return a `TreeRetention` value of `Retain`, `Drop` or
   `Promote`, whereby the element will be retained in the `SyntaxTree`, removed from

@@ -12,9 +12,11 @@ import (
 type TreeRetention int
 
 const (
-	Retain TreeRetention = iota
-	Drop
-	Promote
+	Drop TreeRetention = iota
+	Retain
+	Promoted
+	Promote1
+	Promote2
 )
 
 type SyntaxTree struct {

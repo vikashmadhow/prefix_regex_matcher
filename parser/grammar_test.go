@@ -6,9 +6,11 @@ import (
 	"testing"
 )
 
+// Seq[characters] -> Lexer -> Seq[Token] -> Modulator... -> Seq[Token] -> Syntax Analyser -> ST -> Semantic Processors... -> AT -> Translators... -> Translation
+
 func TestSimpleParser(t *testing.T) {
 	g := testGrammar()
-	tree, err := g.ParseText(
+	tree, err := g.ParseTextFromStart(
 		`let x := 1000;
 		 let y := 2000;
 	     x = x + 5 * (4 + y / 2);
@@ -52,7 +54,7 @@ func testGrammar() *Grammar {
 				Sentence: &Choice{
 					Alternates: []Sentence{
 						&Sequence{Elements: []Sentence{
-							&TokenRef{"LET", Promote},
+							&TokenRef{"LET", Promote1},
 							&TokenRef{"ID", Retain},
 							&TokenRef{":=", Drop},
 							&ProductionRef{"Expr", Retain},
@@ -60,7 +62,7 @@ func testGrammar() *Grammar {
 						}},
 						&Sequence{Elements: []Sentence{
 							&TokenRef{"ID", Retain},
-							&TokenRef{"=", Promote},
+							&TokenRef{"=", Promote1},
 							&ProductionRef{"Expr", Retain},
 							&TokenRef{";", Drop},
 						}},
@@ -73,7 +75,7 @@ func testGrammar() *Grammar {
 					&ProductionRef{"Term", Retain},
 					&Optional{&Sequence{
 						Elements: []Sentence{
-							&TokenRef{"ADD", Retain},
+							&TokenRef{"ADD", Promote2},
 							&ProductionRef{"Expr", Retain},
 						}, TreeRetention: Retain,
 					}, Retain},
@@ -89,7 +91,7 @@ func testGrammar() *Grammar {
 					&ProductionRef{"Base", Retain},
 					&Optional{&Sequence{
 						Elements: []Sentence{
-							&TokenRef{"MUL", Retain},
+							&TokenRef{"MUL", Promote2},
 							&ProductionRef{"Expr", Retain},
 						}, TreeRetention: Retain,
 					}, Retain},
@@ -99,9 +101,9 @@ func testGrammar() *Grammar {
 				Name: "Base",
 				Sentence: &Choice{Alternates: []Sentence{
 					&Sequence{Elements: []Sentence{
-						&TokenRef{"(", Retain},
+						&TokenRef{"(", Promote1},
 						&ProductionRef{"Expr", Retain},
-						&TokenRef{")", Retain},
+						&TokenRef{")", Drop},
 					}},
 					&TokenRef{"INT", Retain},
 					&TokenRef{"ID", Retain},

@@ -9,7 +9,7 @@ import (
 	"io"
 	"maps"
 	"os"
-	"slices"
+	//"slices"
 	"strconv"
 	"strings"
 )
@@ -37,6 +37,8 @@ type LanguageElement interface {
 
 	Retention() TreeRetention
 	SetRetention(TreeRetention)
+
+	Copy() LanguageElement
 
 	ToString() string
 }
@@ -139,6 +141,10 @@ func (t *TokenRef) SetRetention(tr TreeRetention) {
 	t.TreeRetention = tr
 }
 
+func (t *TokenRef) Copy() LanguageElement {
+	return &TokenRef{t.Ref, t.TreeRetention}
+}
+
 func (t *TokenRef) ToString() string {
 	return t.Ref
 }
@@ -179,6 +185,13 @@ func (t *TokenLanguageElement) Retention() TreeRetention {
 
 func (t *TokenLanguageElement) SetRetention(tr TreeRetention) {
 	t.TreeRetention = tr
+}
+
+func (t *TokenLanguageElement) Copy() LanguageElement {
+	return &TokenLanguageElement{t.Token, t.TreeRetention}
+	//return &TokenLanguageElement{&lexer.Token{
+	//	t.Token.Type, t.Token.Text, t.Token.Line, t.Token.Column
+	//}, t.TreeRetention}
 }
 
 func (t *TokenLanguageElement) ToString() string {
@@ -222,6 +235,10 @@ func (p *ProductionRef) Retention() TreeRetention {
 
 func (p *ProductionRef) SetRetention(tr TreeRetention) {
 	p.TreeRetention = tr
+}
+
+func (p *ProductionRef) Copy() LanguageElement {
+	return &ProductionRef{p.Ref, p.TreeRetention}
 }
 
 func (p *ProductionRef) ToString() string {
@@ -321,6 +338,10 @@ func (p *Production) SetRetention(tr TreeRetention) {
 	p.TreeRetention = tr
 }
 
+func (p *Production) Copy() LanguageElement {
+	return &Production{p.Name, p.Sentence.Copy().(Sentence), p.TreeRetention, p.follow}
+}
+
 func (p *Production) ToString() string {
 	return p.Name // + ": " + p.Sentence.ToString()
 }
@@ -403,6 +424,14 @@ func (c *Choice) Retention() TreeRetention {
 
 func (c *Choice) SetRetention(tr TreeRetention) {
 	c.TreeRetention = tr
+}
+
+func (c *Choice) Copy() LanguageElement {
+	altCopy := make([]Sentence, len(c.Alternates))
+	for i, a := range c.Alternates {
+		altCopy[i] = a.Copy().(Sentence)
+	}
+	return &Choice{altCopy, c.TreeRetention, c.first}
 }
 
 func (c *Choice) ToString() string {
@@ -489,7 +518,7 @@ func (s *Sequence) MatchEmpty(g *Grammar) bool {
 }
 
 func (s *Sequence) Recognise(g *Grammar, production LanguageElement, tokens *lexer.TokenSeq, cd CycleDetector) (*SyntaxTree, error) {
-	tree := SyntaxTree{production, nil}
+	tree := &SyntaxTree{production, nil}
 	for _, e := range s.Elements {
 		token, err := tokens.Peek()
 		if err != nil {
@@ -504,26 +533,30 @@ func (s *Sequence) Recognise(g *Grammar, production LanguageElement, tokens *lex
 			if err != nil {
 				return nil, err
 			}
-			if child.Node.Retention() == Retain {
-				tree.Children = append(tree.Children, child)
-			} else if child.Node.Retention() == Promote {
-				//    t  		         y
-				//  x   y     -->      x a b
-				//     a  b
-				newTree := *child
-				newTree.Node.SetRetention(Retain)
-				newTree.Children = slices.Concat(tree.Children, newTree.Children)
-				tree = newTree
-			}
+
+			//if child.Node.Retention() > Promoted {
+			//	//    t  		         y
+			//	//  x   y     -->      x a b
+			//	//     a  b
+			//	newTree := *child
+			//	newTree.Node = newTree.Node.Copy()
+			//	newTree.Node.SetRetention(newTree.Node.Retention() - 1)
+			//	newTree.Children = slices.Concat(tree.Children, newTree.Children)
+			//	tree = &newTree
+			//} else if child.Node.Retention() >= Retain {
+			//if child.Node.Retention() != Drop {
+			tree.Children = append(tree.Children, child)
+			//}
 		} else if !e.MatchEmpty(g) {
 			return nil, fmt.Errorf("token %q cannot start %q", token.Type, e.ToString())
 		}
 	}
-	if len(tree.Children) == 1 {
-		return tree.Children[0], nil
-	} else {
-		return &tree, nil
-	}
+	//if len(tree.Children) == 1 {
+	//    return tree.Children[0], nil
+	//} else {
+	//    return tree, nil
+	//}
+	return tree, nil
 }
 
 func (s *Sequence) Retention() TreeRetention {
@@ -532,6 +565,14 @@ func (s *Sequence) Retention() TreeRetention {
 
 func (s *Sequence) SetRetention(tr TreeRetention) {
 	s.TreeRetention = tr
+}
+
+func (s *Sequence) Copy() LanguageElement {
+	elCopy := make([]Sentence, len(s.Elements))
+	for i, e := range s.Elements {
+		elCopy[i] = e.Copy().(Sentence)
+	}
+	return &Sequence{elCopy, s.TreeRetention, s.first}
 }
 
 func (s *Sequence) ToString() string {
@@ -595,6 +636,10 @@ func (o *Optional) SetRetention(tr TreeRetention) {
 	o.TreeRetention = tr
 }
 
+func (o *Optional) Copy() LanguageElement {
+	return &Optional{o.Sentence.Copy().(Sentence), o.TreeRetention}
+}
+
 func (o *Optional) ToString() string {
 	return "(" + o.Sentence.ToString() + ")?"
 }
@@ -644,6 +689,11 @@ func (o *ZeroOrMore) Recognise(g *Grammar, production LanguageElement, tokens *l
 			break
 		}
 	}
+	//if len(tree.Children) == 1 {
+	//	return tree.Children[0], nil
+	//} else {
+	//	return &tree, nil
+	//}
 	return &tree, nil
 }
 
@@ -653,6 +703,10 @@ func (o *ZeroOrMore) Retention() TreeRetention {
 
 func (o *ZeroOrMore) SetRetention(tr TreeRetention) {
 	o.TreeRetention = tr
+}
+
+func (o *ZeroOrMore) Copy() LanguageElement {
+	return &ZeroOrMore{o.Sentence.Copy().(Sentence), o.TreeRetention}
 }
 
 func (o *ZeroOrMore) ToString() string {
@@ -704,6 +758,11 @@ func (o *OneOrMore) Recognise(g *Grammar, production LanguageElement, tokens *le
 			break
 		}
 	}
+	//if len(tree.Children) == 1 {
+	//	return tree.Children[0], nil
+	//} else {
+	//	return &tree, nil
+	//}
 	return &tree, nil
 }
 
@@ -713,6 +772,10 @@ func (o *OneOrMore) Retention() TreeRetention {
 
 func (o *OneOrMore) SetRetention(tr TreeRetention) {
 	o.TreeRetention = tr
+}
+
+func (o *OneOrMore) Copy() LanguageElement {
+	return &OneOrMore{o.Sentence.Copy().(Sentence), o.TreeRetention}
 }
 
 func (o *OneOrMore) ToString() string {
@@ -763,6 +826,11 @@ func (r *Repeat) Recognise(g *Grammar, production LanguageElement, tokens *lexer
 			break
 		}
 	}
+	//if len(tree.Children) == 1 {
+	//	return tree.Children[0], nil
+	//} else {
+	//	return &tree, nil
+	//}
 	return &tree, nil
 }
 
@@ -772,6 +840,10 @@ func (r *Repeat) Retention() TreeRetention {
 
 func (r *Repeat) SetRetention(tr TreeRetention) {
 	r.TreeRetention = tr
+}
+
+func (r *Repeat) Copy() LanguageElement {
+	return &Repeat{r.Min, r.Max, r.Sentence.Copy().(Sentence), r.TreeRetention, r.first, r.follow}
 }
 
 func (r *Repeat) ToString() string {
@@ -814,16 +886,28 @@ func New(name string, l *lexer.Lexer, productions []*Production) *Grammar {
 	*/
 }
 
-func (g *Grammar) Parse(input io.Reader) (*SyntaxTree, error) {
+func (g *Grammar) Parse(input io.Reader, startFrom *Production) (*SyntaxTree, error) {
 	//l := lexer.New(g.TokenTypes...)
 	tokenSeq := g.Lexer.Lex(input)
 	defer tokenSeq.Stop()
-	prod := g.Productions[0]
+	//prod := g.Productions[0]
 	cd := &CycleDetectorSet{make(map[LanguageElement]bool)}
-	return prod.Recognise(g, prod, tokenSeq, cd)
+	return startFrom.Recognise(g, startFrom, tokenSeq, cd)
 }
 
-func (g *Grammar) ParseFile(filename string) (*SyntaxTree, error) {
+func (g *Grammar) ParseProduction(input io.Reader, startFrom string) (*SyntaxTree, error) {
+	prod, ok := g.ProdByName[startFrom]
+	if !ok {
+		return nil, fmt.Errorf("could not find production %q", startFrom)
+	}
+	return g.Parse(input, prod)
+}
+
+func (g *Grammar) ParseFromStart(input io.Reader) (*SyntaxTree, error) {
+	return g.Parse(input, g.Productions[0])
+}
+
+func (g *Grammar) ParseFile(filename string, startFrom *Production) (*SyntaxTree, error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil, err
@@ -833,9 +917,29 @@ func (g *Grammar) ParseFile(filename string) (*SyntaxTree, error) {
 			panic(err)
 		}
 	}()
-	return g.Parse(file)
+	return g.Parse(file, startFrom)
 }
 
-func (g *Grammar) ParseText(input string) (*SyntaxTree, error) {
-	return g.Parse(strings.NewReader(input))
+func (g *Grammar) ParseFileFromStart(filename string) (*SyntaxTree, error) {
+	return g.ParseFile(filename, g.Productions[0])
+}
+
+func (g *Grammar) ParseFileProduction(filename string, startFrom string) (*SyntaxTree, error) {
+	prod, ok := g.ProdByName[startFrom]
+	if !ok {
+		return nil, fmt.Errorf("could not find production %q", startFrom)
+	}
+	return g.ParseFile(filename, prod)
+}
+
+func (g *Grammar) ParseText(input string, startFrom *Production) (*SyntaxTree, error) {
+	return g.Parse(strings.NewReader(input), startFrom)
+}
+
+func (g *Grammar) ParseTextFromStart(input string) (*SyntaxTree, error) {
+	return g.Parse(strings.NewReader(input), g.Productions[0])
+}
+
+func (g *Grammar) ParseTextProduction(input string, startFrom string) (*SyntaxTree, error) {
+	return g.ParseProduction(strings.NewReader(input), startFrom)
 }
