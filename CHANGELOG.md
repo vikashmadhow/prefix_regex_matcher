@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.0] - 2025-08-19
+- regex.Generate() method for generating a random string matching the regex.
+- Support for random string generation as span and spanSet classes representing
+  a range of characters, or a set of ranges, respectively, together with various
+  operations to merge, invert, subtract, and intersect them.
+
 ## [0.2.5] - 2025-08-14
 - Basic parser implementation.
 
@@ -31,7 +37,7 @@
 - `Reverse` example Modulator for reversing the token stream.
 
 ## [0.2.1] - 2024-12-30
-- Filtering, mapping and flat-mapping can now work on both the pull and push versions of iter.Seq
+- Filtering, mapping, and flat-mapping can now work on both the pull and push versions of iter.Seq
   and iter.Seq2.
 - Lexer `Lex` methods for returning a push version of iter.Seq2, which is simple to iterate over.
   However, these version does not allow for token pushback.
@@ -40,7 +46,7 @@
 - A set of utility functions for filtering, mapping and flat-mapping over iter.Seq and iter.Seq2.
 - Lexer now reads its input from an `io.Reader` which is more memory efficient.
 - Flatmap functions can be attached to a lexer to modulate its output, arbitrarily changing the
-  token stream. This can be used to ignore certain tokens, modify tokens or insert new tokens
+  token stream. This can be used to ignore certain tokens, modify tokens, or insert new tokens
   at arbitrary points in the token stream.
 - Simple context-free-grammar definition and predictive parser (untested).
 

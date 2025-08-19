@@ -196,7 +196,7 @@ func (r *parser) ch() Regex {
 		if r.hasMore() {
 			r.next()
 		}
-		return &characterSet{exclude, *charSets, cp(r.groups)}
+		return &charSet{exclude, *charSets, cp(r.groups)}
 
 	} else if r.peek() == '\\' {
 		r.next()
@@ -208,7 +208,7 @@ func (r *parser) ch() Regex {
 			case 'D':
 				cs := list.New()
 				cs.PushBack(&charRange{'0', '9', cp(r.groups)})
-				return &characterSet{true, *cs, cp(r.groups)}
+				return &charSet{true, *cs, cp(r.groups)}
 			case 's':
 				cs := list.New()
 				cs.PushBack(&singleChar{' ', cp(r.groups)})
@@ -216,7 +216,7 @@ func (r *parser) ch() Regex {
 				cs.PushBack(&singleChar{'\n', cp(r.groups)})
 				cs.PushBack(&singleChar{'\f', cp(r.groups)})
 				cs.PushBack(&singleChar{'\r', cp(r.groups)})
-				return &characterSet{false, *cs, cp(r.groups)}
+				return &charSet{false, *cs, cp(r.groups)}
 			case 'S':
 				cs := list.New()
 				cs.PushBack(&singleChar{' ', cp(r.groups)})
@@ -224,21 +224,21 @@ func (r *parser) ch() Regex {
 				cs.PushBack(&singleChar{'\n', cp(r.groups)})
 				cs.PushBack(&singleChar{'\f', cp(r.groups)})
 				cs.PushBack(&singleChar{'\r', cp(r.groups)})
-				return &characterSet{true, *cs, cp(r.groups)}
+				return &charSet{true, *cs, cp(r.groups)}
 			case 'w':
 				cs := list.New()
 				cs.PushBack(&charRange{'0', '9', cp(r.groups)})
 				cs.PushBack(&charRange{'a', 'z', cp(r.groups)})
 				cs.PushBack(&charRange{'A', 'Z', cp(r.groups)})
 				cs.PushBack(&singleChar{'_', cp(r.groups)})
-				return &characterSet{false, *cs, cp(r.groups)}
+				return &charSet{false, *cs, cp(r.groups)}
 			case 'W':
 				cs := list.New()
 				cs.PushBack(&charRange{'0', '9', cp(r.groups)})
 				cs.PushBack(&charRange{'a', 'z', cp(r.groups)})
 				cs.PushBack(&charRange{'A', 'Z', cp(r.groups)})
 				cs.PushBack(&singleChar{'_', cp(r.groups)})
-				return &characterSet{true, *cs, cp(r.groups)}
+				return &charSet{true, *cs, cp(r.groups)}
 			default:
 				return &singleChar{c, cp(r.groups)}
 			}

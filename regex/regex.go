@@ -7,7 +7,9 @@ package regex
 
 import (
 	"container/list"
+	"maps"
 	"math"
+	"math/rand"
 	"slices"
 	"strconv"
 	"strings"
@@ -74,6 +76,30 @@ func (r *CompiledRegex) Match(input string) bool {
 
 func (r *CompiledRegex) MatchEmpty() bool {
 	return slices.Index(r.Dfa.final, r.Dfa.start) != -1
+}
+
+func (r *CompiledRegex) Generate() string {
+	var s strings.Builder
+	state := r.Dfa.start
+	trans := r.Dfa.Trans[state]
+	for len(trans) > 0 {
+		nextStates := len(trans)
+		final := slices.Index(r.Dfa.final, state) != -1
+		if final {
+			nextStates += 1
+		}
+		n := rand.Intn(nextStates)
+		if final && n == nextStates-1 {
+			break
+		} else {
+			t := slices.Collect(maps.Keys(trans))
+			c := t[n]
+			s.WriteRune(c.generate())
+			state = trans[c]
+		}
+		trans = r.Dfa.Trans[state]
+	}
+	return s.String()
 }
 
 // choice represents the regex | regex rule

@@ -51,23 +51,23 @@ type FlatMap2Func[K, V, MK, MV any] func(K, V) []Pair[MK, MV]
 // Push converts an iter.Pull style iterator to the default iterator (push) style.
 func Push[V any](seq Seq[V], stop func()) iter.Seq[V] {
 	return func(yield func(value V) bool) {
+		defer stop()
 		for v, ok := seq(); ok; v, ok = seq() {
 			if !yield(v) {
 				break
 			}
 		}
-		stop()
 	}
 }
 
 // Push2 converts an iter.Pull2 style iterator to the default iterator (push) style.
 func Push2[K, V any](seq Seq2[K, V], stop func()) iter.Seq2[K, V] {
 	return func(yield func(key K, value V) bool) {
+		defer stop()
 		for k, v, ok := seq(); ok; k, v, ok = seq() {
 			if !yield(k, v) {
 				break
 			}
 		}
-		stop()
 	}
 }
