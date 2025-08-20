@@ -15,17 +15,56 @@ import (
 	"strings"
 )
 
-// Regex is the base visible interface of regular expressions
-type Regex interface {
-	Pattern() string
-	nfa() *automata
-}
+type (
+	// Regex is the base visible interface of regular expressions
+	Regex interface {
+		Pattern() string
+		nfa() *automata
+	}
 
-type CompiledRegex struct {
-	Regex Regex
-	Nfa   *automata
-	Dfa   *automata
-}
+	CompiledRegex struct {
+		Regex Regex
+		Nfa   *automata
+		Dfa   *automata
+	}
+
+	// choice represents the regex | regex rule
+	choice struct {
+		left  Regex
+		right Regex
+	}
+
+	// sequence represents a sequence of regular expressions (a, b, ...)
+	sequence struct {
+		sequence []Regex
+	}
+
+	// zeroOrOne is for an optional regular expression (re?)
+	zeroOrOne struct {
+		opt Regex
+	}
+
+	// zeroOrMore is for the Kleene closure (re*)
+	zeroOrMore struct {
+		re Regex
+	}
+
+	// oneOrMore is for positive closure (re+)
+	oneOrMore struct {
+		re Regex
+	}
+
+	// oneOrMore is for positive closure (re+)
+	repeat struct {
+		re       Regex
+		min, max uint8
+	}
+
+	// captureGrp is for grouping regular expressions inside brackets, i.e., (re)
+	captureGroup struct {
+		re Regex
+	}
+)
 
 func Escape(s string) string {
 	//str := x(s)
@@ -58,7 +97,7 @@ func NewRegex(input string) *CompiledRegex {
 	groups := list.New()
 	groups.PushBack(0)
 	parser := parser{[]rune(input), 0, &group, groups}
-	r := parser.regex()
+	r := parser.regex(&modifier{caseInsensitive: false, unicode: false})
 	n := r.nfa()
 	d := dfa(n)
 	return &CompiledRegex{r, n, d}
@@ -94,49 +133,12 @@ func (r *CompiledRegex) Generate() string {
 		} else {
 			t := slices.Collect(maps.Keys(trans))
 			c := t[n]
-			s.WriteRune(c.generate())
+			s.WriteRune(c.spanSet().random())
 			state = trans[c]
 		}
 		trans = r.Dfa.Trans[state]
 	}
 	return s.String()
-}
-
-// choice represents the regex | regex rule
-type choice struct {
-	left  Regex
-	right Regex
-}
-
-// sequence represents a sequence of regular expressions (a, b, ...)
-type sequence struct {
-	sequence []Regex
-}
-
-// zeroOrOne is for an optional regular expression (re?)
-type zeroOrOne struct {
-	opt Regex
-}
-
-// zeroOrMore is for the Kleene closure (re*)
-type zeroOrMore struct {
-	re Regex
-}
-
-// oneOrMore is for positive closure (re+)
-type oneOrMore struct {
-	re Regex
-}
-
-// oneOrMore is for positive closure (re+)
-type repeat struct {
-	re       Regex
-	min, max uint8
-}
-
-// captureGrp is for grouping regular expressions inside brackets, i.e., (re)
-type captureGroup struct {
-	re Regex
 }
 
 //-----------------Regex interface methods------------//
@@ -357,23 +359,4 @@ func (r *captureGroup) Pattern() string {
 
 func (r *captureGroup) nfa() *automata {
 	return r.re.nfa()
-}
-
-func merge(target *automata, source *automata) *automata {
-	for k, v := range source.Trans {
-		target.Trans[k] = v
-	}
-	return target
-}
-
-func addTransitions(target *automata, from state, to map[char]state) *automata {
-	existing, ok := target.Trans[from]
-	if !ok {
-		target.Trans[from] = to
-	} else {
-		for k, v := range to {
-			existing[k] = v
-		}
-	}
-	return target
 }

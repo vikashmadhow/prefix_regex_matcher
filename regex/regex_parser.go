@@ -33,12 +33,19 @@ import (
 )
 
 // ----------------Regex top-down parsing----------------//
-type parser struct {
-	input    []rune
-	position int
-	group    *int
-	groups   *list.List
-}
+type (
+	parser struct {
+		input    []rune
+		position int
+		group    *int
+		groups   *list.List
+	}
+
+	modifier struct {
+		caseInsensitive bool
+		unicode         bool
+	}
+)
 
 func (r *parser) peek() rune {
 	if r.position < len(r.input) {
@@ -58,27 +65,30 @@ func (r *parser) hasMore() bool {
 	return len(r.input) > r.position
 }
 
-func (r *parser) regex() Regex {
-	term := r.term()
+func (r *parser) regex(mod *modifier) Regex {
+	term := r.term(mod)
 	if r.hasMore() && r.peek() == '|' {
 		r.next()
-		right := r.regex()
+		right := r.regex(mod)
 		return &choice{term, right}
 	} else {
 		return term
 	}
 }
 
-func (r *parser) term() Regex {
+func (r *parser) term(mod *modifier) Regex {
 	var factors []Regex
 	for r.hasMore() && r.peek() != ')' && r.peek() != '|' {
-		factors = append(factors, r.factor())
+		f := r.factor(mod)
+		if f != nil {
+			factors = append(factors, f)
+		}
 	}
 	return &sequence{factors}
 }
 
-func (r *parser) factor() Regex {
-	base := r.base()
+func (r *parser) factor(mod *modifier) Regex {
+	base := r.base(mod)
 	if r.hasMore() {
 		switch r.peek() {
 		case '*':
@@ -140,34 +150,50 @@ func (r *parser) factor() Regex {
 				}
 				return &repeat{base, uint8(mi), uint8(ma)}
 			} else {
-				return &singleChar{'{', cp(r.groups)}
+				return &singleChar{mod, '{', cp(r.groups)}
 			}
 		}
 	}
 	return base
 }
 
-func (r *parser) base() Regex {
+func (r *parser) base(mod *modifier) Regex {
 	if r.peek() == '(' {
 		r.next()
-
-		*r.group++
-		r.groups.PushBack(*r.group)
-
-		re := r.regex()
-		r.groups.Remove(r.groups.Back())
-
-		// lenient parsing: don't break if no closing bracket, read to the end
-		if r.hasMore() {
+		if r.peek() == '?' {
+			// modifiers
 			r.next()
+			switch r.next() {
+			case 'i':
+				mod.caseInsensitive = true
+			case 'u':
+				mod.unicode = true
+			}
+
+			// lenient parsing: don't break if no closing bracket, read to the end
+			if r.hasMore() {
+				r.next()
+			}
+			return nil
+		} else {
+			*r.group++
+			r.groups.PushBack(*r.group)
+
+			re := r.regex(mod)
+			r.groups.Remove(r.groups.Back())
+
+			// lenient parsing: don't break if no closing bracket, read to the end
+			if r.hasMore() {
+				r.next()
+			}
+			return &captureGroup{re}
 		}
-		return &captureGroup{re}
 	} else {
-		return r.ch()
+		return r.ch(mod)
 	}
 }
 
-func (r *parser) ch() Regex {
+func (r *parser) ch(mod *modifier) Regex {
 	if r.peek() == '[' {
 		r.next()
 
@@ -184,72 +210,72 @@ func (r *parser) ch() Regex {
 				r.next()
 				if r.hasMore() && r.peek() != ']' {
 					to := r.next()
-					charSets.PushBack(&charRange{from, to, cp(r.groups)})
+					charSets.PushBack(&charRange{mod, from, to, cp(r.groups)})
 				} else {
-					charSets.PushBack(&charRange{from, math.MaxUint8, cp(r.groups)})
+					charSets.PushBack(&charRange{mod, from, math.MaxUint8, cp(r.groups)})
 				}
 			} else {
-				charSets.PushBack(&singleChar{from, cp(r.groups)})
+				charSets.PushBack(&singleChar{mod, from, cp(r.groups)})
 			}
 		}
 		// lenient parsing: don't break if no closing square bracket, read to the end
 		if r.hasMore() {
 			r.next()
 		}
-		return &charSet{exclude, *charSets, cp(r.groups)}
+		return &charSet{mod, exclude, *charSets, cp(r.groups)}
 
 	} else if r.peek() == '\\' {
 		r.next()
-		// lenient parsing: single backlash at the end is interpreted as escaping itself
+		// lenient parsing: a single backlash at the end is interpreted as escaping itself
 		if r.hasMore() {
 			switch c := r.next(); c {
 			case 'd':
-				return &charRange{'0', '9', cp(r.groups)}
+				return &charRange{mod, '0', '9', cp(r.groups)}
 			case 'D':
 				cs := list.New()
-				cs.PushBack(&charRange{'0', '9', cp(r.groups)})
-				return &charSet{true, *cs, cp(r.groups)}
+				cs.PushBack(&charRange{mod, '0', '9', cp(r.groups)})
+				return &charSet{mod, true, *cs, cp(r.groups)}
 			case 's':
 				cs := list.New()
-				cs.PushBack(&singleChar{' ', cp(r.groups)})
-				cs.PushBack(&singleChar{'\t', cp(r.groups)})
-				cs.PushBack(&singleChar{'\n', cp(r.groups)})
-				cs.PushBack(&singleChar{'\f', cp(r.groups)})
-				cs.PushBack(&singleChar{'\r', cp(r.groups)})
-				return &charSet{false, *cs, cp(r.groups)}
+				cs.PushBack(&singleChar{mod, ' ', cp(r.groups)})
+				cs.PushBack(&singleChar{mod, '\t', cp(r.groups)})
+				cs.PushBack(&singleChar{mod, '\n', cp(r.groups)})
+				cs.PushBack(&singleChar{mod, '\f', cp(r.groups)})
+				cs.PushBack(&singleChar{mod, '\r', cp(r.groups)})
+				return &charSet{mod, false, *cs, cp(r.groups)}
 			case 'S':
 				cs := list.New()
-				cs.PushBack(&singleChar{' ', cp(r.groups)})
-				cs.PushBack(&singleChar{'\t', cp(r.groups)})
-				cs.PushBack(&singleChar{'\n', cp(r.groups)})
-				cs.PushBack(&singleChar{'\f', cp(r.groups)})
-				cs.PushBack(&singleChar{'\r', cp(r.groups)})
-				return &charSet{true, *cs, cp(r.groups)}
+				cs.PushBack(&singleChar{mod, ' ', cp(r.groups)})
+				cs.PushBack(&singleChar{mod, '\t', cp(r.groups)})
+				cs.PushBack(&singleChar{mod, '\n', cp(r.groups)})
+				cs.PushBack(&singleChar{mod, '\f', cp(r.groups)})
+				cs.PushBack(&singleChar{mod, '\r', cp(r.groups)})
+				return &charSet{mod, true, *cs, cp(r.groups)}
 			case 'w':
 				cs := list.New()
-				cs.PushBack(&charRange{'0', '9', cp(r.groups)})
-				cs.PushBack(&charRange{'a', 'z', cp(r.groups)})
-				cs.PushBack(&charRange{'A', 'Z', cp(r.groups)})
-				cs.PushBack(&singleChar{'_', cp(r.groups)})
-				return &charSet{false, *cs, cp(r.groups)}
+				cs.PushBack(&charRange{mod, '0', '9', cp(r.groups)})
+				cs.PushBack(&charRange{mod, 'a', 'z', cp(r.groups)})
+				cs.PushBack(&charRange{mod, 'A', 'Z', cp(r.groups)})
+				cs.PushBack(&singleChar{mod, '_', cp(r.groups)})
+				return &charSet{mod, false, *cs, cp(r.groups)}
 			case 'W':
 				cs := list.New()
-				cs.PushBack(&charRange{'0', '9', cp(r.groups)})
-				cs.PushBack(&charRange{'a', 'z', cp(r.groups)})
-				cs.PushBack(&charRange{'A', 'Z', cp(r.groups)})
-				cs.PushBack(&singleChar{'_', cp(r.groups)})
-				return &charSet{true, *cs, cp(r.groups)}
+				cs.PushBack(&charRange{mod, '0', '9', cp(r.groups)})
+				cs.PushBack(&charRange{mod, 'a', 'z', cp(r.groups)})
+				cs.PushBack(&charRange{mod, 'A', 'Z', cp(r.groups)})
+				cs.PushBack(&singleChar{mod, '_', cp(r.groups)})
+				return &charSet{mod, true, *cs, cp(r.groups)}
 			default:
-				return &singleChar{c, cp(r.groups)}
+				return &singleChar{mod, c, cp(r.groups)}
 			}
 		} else {
-			return &singleChar{'\\', cp(r.groups)}
+			return &singleChar{mod, '\\', cp(r.groups)}
 		}
 	} else if r.peek() == '.' {
 		r.next()
-		return &anyChar{}
+		return &anyChar{mod: mod}
 	} else {
-		return &singleChar{r.next(), cp(r.groups)}
+		return &singleChar{mod, r.next(), cp(r.groups)}
 	}
 }
 
