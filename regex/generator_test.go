@@ -38,3 +38,10 @@ func TestGenerator_Next5(t *testing.T) {
 		println(r.Generate())
 	}
 }
+
+func TestGenerator_Next6(t *testing.T) {
+	r := NewRegex("(20[012]|19[7-9])\\d-[0-9]{5}(-[1-4])?")
+	for i := 0; i < 20000; i++ {
+		println(r.Generate())
+	}
+}
