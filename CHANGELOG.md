@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.3.1] - 2025-08-20
+- Support for modifiers through the (?) syntax.
+  - (?i) turns on case-insensitive mode, whereby matches ignore case and random
+    generation will include both cases.
+  - (?u) turns on Unicode mode, whereby random generation will include Unicode
+    characters. This modifier has no effect on matching which is always on Unicode
+    characters. By default, random generation is limited to printable ASCII characters
+    (ASCII code 32 to 126).
+
 ## [0.3.0] - 2025-08-19
 - regex.Generate() method for generating a random string matching the regex.
 - Support for random string generation as span and spanSet classes representing

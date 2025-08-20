@@ -107,11 +107,11 @@ func TestMinus2(t *testing.T) {
 	//	{8, 12},
 	//	{19, 20},
 	//}
-	s2 := all.minus(s1)
+	s2 := allUnicode.minus(s1)
 	s4 := s1.compact()
 	fmt.Println(s4)
 	fmt.Println(s2)
-	s3 := all.minus(s2)
+	s3 := allUnicode.minus(s2)
 
 	if !slices.Equal(s3, s4) {
 		t.Error("expected", s4, "actual", s3)

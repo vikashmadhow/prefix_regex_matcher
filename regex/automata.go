@@ -192,3 +192,32 @@ func label(groups *list.List) string {
 	}
 	return s
 }
+
+func charNfa(c char) *automata {
+	a := automata{
+		Trans: make(transitions),
+		start: &stateObj{},
+		final: []state{&stateObj{}},
+	}
+	addTransitions(&a, a.start, map[char]state{c: a.final[0]})
+	return &a
+}
+
+func merge(target *automata, source *automata) *automata {
+	for k, v := range source.Trans {
+		target.Trans[k] = v
+	}
+	return target
+}
+
+func addTransitions(target *automata, from state, to map[char]state) *automata {
+	existing, ok := target.Trans[from]
+	if !ok {
+		target.Trans[from] = to
+	} else {
+		for k, v := range to {
+			existing[k] = v
+		}
+	}
+	return target
+}

@@ -33,7 +33,7 @@ func TestGenerator_Next4(t *testing.T) {
 }
 
 func TestGenerator_Next5(t *testing.T) {
-	r := NewRegex("[A-Z]{5}-[^A-Za-Z!#$#$#$#]{10}")
+	r := NewRegex("(?i)[A-Z]{5}-[^ A-Za-z!#$#$#$#]{20}")
 	for i := 0; i < 10; i++ {
 		println(r.Generate())
 	}
