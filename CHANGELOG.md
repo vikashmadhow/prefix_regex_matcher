@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.3.3] - 2025-08-21
+- Improved matching code in span, spanSet, and charSet.
+
 ## [0.3.2] - 2025-08-20
 - Fixed all unit tests.
 - Cleaned up code.

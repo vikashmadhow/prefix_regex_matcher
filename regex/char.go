@@ -271,21 +271,17 @@ func (c *charSet) nfa() *automata {
 }
 
 func (c *charSet) match(ch rune) bool {
-	if c.exclude {
-		for cs := c.sets.Front(); cs != nil; cs = cs.Next() {
-			if cs.Value.(char).match(ch) {
-				return false
-			}
+	matched := false
+	for cs := c.sets.Front(); cs != nil; cs = cs.Next() {
+		if cs.Value.(char).match(ch) {
+			matched = true
+			break
 		}
-		return true
-	} else {
-		for cs := c.sets.Front(); cs != nil; cs = cs.Next() {
-			if cs.Value.(char).match(ch) {
-				return true
-			}
-		}
-		return false
 	}
+	if c.exclude {
+		return !matched
+	}
+	return matched
 }
 
 func (c *charSet) spanSet() spanSet {

@@ -30,6 +30,10 @@ func (r span) intersect(other span) bool {
 	return r.to >= other.from && other.to >= r.from
 }
 
+func (r span) match(c rune) bool {
+	return r.from <= c && c <= r.to
+}
+
 func (r spanSet) len() int {
 	l := 0
 	for _, s := range r {
@@ -115,4 +119,13 @@ func (r spanSet) sort() {
 	slices.SortFunc(r, func(a, b span) int {
 		return int(a.from) - int(b.from)
 	})
+}
+
+func (r spanSet) match(c rune) bool {
+	for _, s := range r {
+		if s.match(c) {
+			return true
+		}
+	}
+	return false
 }
