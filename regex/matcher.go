@@ -30,10 +30,6 @@ type Matcher struct {
     State     state
 }
 
-func (r *CompiledRegex) Matcher() *Matcher {
-    return &Matcher{Start, "", map[int]string{}, r, r.Dfa.start}
-}
-
 func (m *Matcher) Reset() {
     m.LastMatch = Start
     m.Matched = ""

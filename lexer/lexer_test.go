@@ -5,9 +5,10 @@ package lexer
 import (
 	"errors"
 	"fmt"
-	"github.com/vikashmadhow/prefix_regex_matcher/seq"
 	"slices"
 	"testing"
+
+	"github.com/vikashmadhow/prefix_regex_matcher/seq"
 )
 
 func TestBasicLexer(t *testing.T) {
@@ -53,7 +54,7 @@ func TestLexerError(t *testing.T) {
 		&TokenType{Id: "SPC", Pattern: "\\s+"},
 	)
 
-	var tokens []Token
+	var tokens []*Token
 	tokenSeq := l.LexText("let x? =  1000")
 	for token, e := range seq.Push2(tokenSeq.Next, tokenSeq.Stop) {
 		if e != nil {
@@ -64,7 +65,7 @@ func TestLexerError(t *testing.T) {
 		tokens = append(tokens, token)
 	}
 
-	if !slices.Equal(tokens, []Token{
+	if !slices.Equal(tokens, []*Token{
 		{"LET", "let", 1, 1},
 		{"SPC", " ", 1, 4},
 		{"ID", "x", 1, 5},
@@ -98,7 +99,7 @@ func TestMultiline(t *testing.T) {
 
 	l.Modulator(Ignore("SPC"))
 
-	var tokens []Token
+	var tokens []*Token
 	//tokenSeq := l.LexText(`let x = 1000
 	//						 let y =x+y*-2000`)
 	//for token := range seq.Push2(tokenSeq.Next, tokenSeq.Stop) {
@@ -109,11 +110,11 @@ func TestMultiline(t *testing.T) {
 
 	for token := range l.LexTextSeq(`let x = 1000
 							 let y =x+y*-2000`) {
-		tokens = append(tokens, token)
+		tokens = append(tokens, &token)
 	}
 
-	fmt.Println(tokens)
-	_, err := matchTokens(tokens, []Token{
+	//fmt.Println(tokens)
+	_, err := matchTokens(tokens, []*Token{
 		{"LET", "let", 1, 1},
 		//{"SPC", " ", 1, 4},
 		{"ID", "x", 1, 5},
@@ -154,13 +155,13 @@ func TestUnicode(t *testing.T) {
 	l.Buffer(3)
 	l.Modulator(Ignore("SPC"))
 
-	var tokens []Token
+	var tokens []*Token
 	for token := range l.LexTextSeq(`let A日本語 = 1000`) {
-		tokens = append(tokens, token)
+		tokens = append(tokens, &token)
 	}
 
 	fmt.Println(tokens)
-	_, err := matchTokens(tokens, []Token{
+	_, err := matchTokens(tokens, []*Token{
 		{"LET", "let", 1, 1},
 		{"ID", "A日本語", 1, 5},
 		{"EQ", "=", 1, 10},
@@ -186,13 +187,13 @@ func TestReverse(t *testing.T) {
 	//l.Buffer(3)
 	l.Modulator(Ignore("SPC"), Reverse())
 
-	var tokens []Token
+	var tokens []*Token
 	for token := range l.LexTextSeq(`let A日本語 = 1000`) {
-		tokens = append(tokens, token)
+		tokens = append(tokens, &token)
 	}
 
 	fmt.Println(tokens)
-	_, err := matchTokens(tokens, []Token{
+	_, err := matchTokens(tokens, []*Token{
 		{"INT", "1000", 1, 12},
 		{"EQ", "=", 1, 10},
 		{"ID", "A日本語", 1, 5},
@@ -237,13 +238,13 @@ func TestReverseAlternate(t *testing.T) {
 		}
 	}())
 
-	var tokens []Token
+	var tokens []*Token
 	for token := range l.LexTextSeq(`let A日本語 = 1000 +`) {
-		tokens = append(tokens, token)
+		tokens = append(tokens, &token)
 	}
 
 	fmt.Println(tokens)
-	_, err := matchTokens(tokens, []Token{
+	_, err := matchTokens(tokens, []*Token{
 		{"ID", "A日本語", 1, 5},
 		{"LET", "let", 1, 1},
 		{"INT", "1000", 1, 12},
@@ -268,7 +269,7 @@ func TestEndError(t *testing.T) {
 		&TokenType{Id: "SPC", Pattern: "\\s+"},
 	)
 
-	var tokens []Token
+	var tokens []*Token
 	tokenSeq := l.LexText(`let x : 1000 :`)
 	for token, e := range seq.Push2(tokenSeq.Next, tokenSeq.Stop) {
 		if e != nil {
@@ -280,7 +281,7 @@ func TestEndError(t *testing.T) {
 		}
 	}
 
-	_, err := matchTokens(tokens, []Token{
+	_, err := matchTokens(tokens, []*Token{
 		{"LET", "let", 1, 1},
 		{"ID", "x", 1, 5},
 		{"EQ", ":=", 1, 7},
@@ -293,12 +294,12 @@ func TestEndError(t *testing.T) {
 	}
 }
 
-func matchTokens(t1 []Token, t2 []Token) (bool, error) {
+func matchTokens(t1 []*Token, t2 []*Token) (bool, error) {
 	if len(t1) != len(t2) {
 		return false, errors.New(fmt.Sprint("comparing different number of tokens:", len(t1), ",", len(t2)))
 	}
 	for i, token := range t1 {
-		if t2[i] != token {
+		if *t2[i] != *token {
 			return false, errors.New(fmt.Sprint("failed at position:", i, ",", token, "!=", t2[i]))
 		}
 	}

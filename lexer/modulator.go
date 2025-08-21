@@ -1,8 +1,9 @@
 package lexer
 
 import (
-	"github.com/vikashmadhow/prefix_regex_matcher/seq"
 	"slices"
+
+	"github.com/vikashmadhow/prefix_regex_matcher/seq"
 )
 
 // Modulator is a function that can modify the token stream produced by a lexer. It

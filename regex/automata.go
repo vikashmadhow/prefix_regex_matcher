@@ -10,18 +10,129 @@ import (
 	"strconv"
 )
 
-type stateObj struct{ _ uint8 }
+type (
+	stateObj struct{ _ uint8 }
 
-type state *stateObj
+	state *stateObj
 
-type transitions map[state]map[char]state
+	transitions map[state]map[char]state
 
-type set[T comparable] map[T]bool
+	set[T comparable] map[T]bool
 
-type automata struct {
-	Trans transitions
-	start state
-	final []state
+	automata struct {
+		Trans transitions
+		start state
+		final []state
+	}
+)
+
+func (auto *automata) dfa() *automata {
+	dfa := automata{
+		Trans: make(transitions),
+		start: nil,
+		final: []state{},
+	}
+
+	dfaStates := map[state]set[state]{}
+	explored := make(chan set[state], 1000)
+	reachable := &set[state]{}
+	eClosure(auto.Trans, auto.start, reachable)
+	explored <- *reachable
+
+	dfa.start = &stateObj{}
+	dfaStates[dfa.start] = *reachable
+	if auto.containsFinal(reachable) {
+		dfa.final = append(dfa.final, dfa.start)
+	}
+
+	for len(explored) > 0 {
+		dfaState := <-explored
+		source := find(dfaStates, dfaState)
+
+		// union all outgoing character transitions on any State of the DFA State
+		chars := map[string][]char{}
+		for s := range dfaState {
+			trans := auto.Trans[s]
+			for c := range trans {
+				if !c.isEmpty() {
+					pattern := c.Pattern()
+					chars[pattern] = append(chars[pattern], c)
+				}
+			}
+		}
+
+		// find reachable set of states for each outgoing character
+		for _, cs := range chars {
+			reachable = &set[state]{}
+			groups := set[int]{}
+			var combinedChar char = nil
+			for _, c := range cs {
+				if combinedChar == nil {
+					combinedChar = c
+				}
+				for i := c.groups().Front(); i != nil; i = i.Next() {
+					groups[i.Value.(int)] = true
+				}
+				for s := range dfaState {
+					trans := auto.Trans[s]
+					if t, ok := trans[c]; ok {
+						eClosure(auto.Trans, t, reachable)
+					}
+				}
+			}
+
+			union := slices.Sorted(maps.Keys(groups))
+			newGroups := list.New()
+			for _, g := range union {
+				newGroups.PushBack(g)
+			}
+			combinedChar.setGroups(newGroups)
+
+			target := find(dfaStates, *reachable)
+			if target == nil {
+				target = &stateObj{}
+				dfaStates[target] = *reachable
+				explored <- *reachable
+			}
+			if auto.containsFinal(reachable) && slices.Index(dfa.final, target) == -1 {
+				dfa.final = append(dfa.final, target)
+			}
+			_, ok := dfa.Trans[source]
+			if !ok {
+				dfa.Trans[source] = map[char]state{}
+			}
+			dfa.Trans[source][combinedChar] = target
+		}
+	}
+	return &dfa
+}
+
+func (auto *automata) containsFinal(reachable *set[state]) bool {
+	for s := range *reachable {
+		if s == auto.final[0] {
+			return true
+		}
+	}
+	return false
+}
+
+func (auto *automata) merge(source *automata) *automata {
+	for k, v := range source.Trans {
+		auto.Trans[k] = v
+	}
+	return auto
+}
+
+func (auto *automata) addTransitions(from state, to map[char]state) *automata {
+	existing, ok := auto.Trans[from]
+	if !ok {
+		auto.Trans[from] = to
+	} else {
+		for k, v := range to {
+			existing[k] = v
+		}
+	}
+	return auto
 }
 
 func (auto *automata) ToGraphViz(title string) string {
@@ -69,96 +180,6 @@ func (auto *automata) ToGraphViz(title string) string {
 	return spec
 }
 
-func dfa(nfa *automata) *automata {
-	dfa := automata{
-		Trans: make(transitions),
-		start: nil,
-		final: []state{},
-	}
-
-	dfaStates := map[state]set[state]{}
-	explored := make(chan set[state], 1000)
-	reachable := &set[state]{}
-	eClosure(nfa.Trans, nfa.start, reachable)
-	explored <- *reachable
-
-	dfa.start = &stateObj{}
-	dfaStates[dfa.start] = *reachable
-	if containsFinal(nfa, reachable) {
-		dfa.final = append(dfa.final, dfa.start)
-	}
-
-	for len(explored) > 0 {
-		dfaState := <-explored
-		source := find(dfaStates, dfaState)
-
-		// union all outgoing character transitions on any State of the DFA State
-		chars := map[string][]char{}
-		for s := range dfaState {
-			trans := nfa.Trans[s]
-			for c := range trans {
-				if !c.isEmpty() {
-					pattern := c.Pattern()
-					chars[pattern] = append(chars[pattern], c)
-				}
-			}
-		}
-
-		// find reachable set of states for each outgoing character
-		for _, cs := range chars {
-			reachable = &set[state]{}
-			groups := set[int]{}
-			var combinedChar char = nil
-			for _, c := range cs {
-				if combinedChar == nil {
-					combinedChar = c
-				}
-				for i := c.groups().Front(); i != nil; i = i.Next() {
-					groups[i.Value.(int)] = true
-				}
-				for s := range dfaState {
-					trans := nfa.Trans[s]
-					if t, ok := trans[c]; ok {
-						eClosure(nfa.Trans, t, reachable)
-					}
-				}
-			}
-
-			union := slices.Sorted(maps.Keys(groups))
-			newGroups := list.New()
-			for _, g := range union {
-				newGroups.PushBack(g)
-			}
-			combinedChar.setGroups(newGroups)
-
-			target := find(dfaStates, *reachable)
-			if target == nil {
-				target = &stateObj{}
-				dfaStates[target] = *reachable
-				explored <- *reachable
-			}
-			if containsFinal(nfa, reachable) && slices.Index(dfa.final, target) == -1 {
-				dfa.final = append(dfa.final, target)
-			}
-			_, ok := dfa.Trans[source]
-			if !ok {
-				dfa.Trans[source] = map[char]state{}
-			}
-			dfa.Trans[source][combinedChar] = target
-		}
-	}
-	return &dfa
-}
-
-func containsFinal(nfa *automata, reachable *set[state]) bool {
-	for s := range *reachable {
-		if s == nfa.final[0] {
-			return true
-		}
-	}
-	return false
-}
-
 func eClosure(trans transitions, s state, closure *set[state]) {
 	(*closure)[s] = true
 	for c, t := range trans[s] {
@@ -199,25 +220,6 @@ func charNfa(c char) *automata {
 		start: &stateObj{},
 		final: []state{&stateObj{}},
 	}
-	addTransitions(&a, a.start, map[char]state{c: a.final[0]})
+	a.addTransitions(a.start, map[char]state{c: a.final[0]})
 	return &a
-}
-
-func merge(target *automata, source *automata) *automata {
-	for k, v := range source.Trans {
-		target.Trans[k] = v
-	}
-	return target
-}
-
-func addTransitions(target *automata, from state, to map[char]state) *automata {
-	existing, ok := target.Trans[from]
-	if !ok {
-		target.Trans[from] = to
-	} else {
-		for k, v := range to {
-			existing[k] = v
-		}
-	}
-	return target
 }

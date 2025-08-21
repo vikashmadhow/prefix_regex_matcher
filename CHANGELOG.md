@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.3.2] - 2025-08-20
+- Fixed all unit tests.
+- Cleaned up code.
+
 ## [0.3.1] - 2025-08-20
 - Support for modifiers through the (?) syntax.
   - (?i) turns on case-insensitive mode, whereby matches ignore case and random

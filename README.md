@@ -21,8 +21,8 @@ The regular expression engine currently supports the following patterns:
 ### Character and character classes
 | Expression | Meaning                                                                     |
 |------------|-----------------------------------------------------------------------------|
-| `[a-zAB]`  | Character set: `a` to `z`, `A` and `B`.                                     |
-| `[^a-zAB]` | Inverse of character set: any character other than `a` to `z`, `A` and `B`. |
+| `[a-z@#]`  | Character set: `a` to `z`, `@` and `#`. Matches any of these characters.    |
+| `[^a-z@#]` | Inverse of character set: any character other than `a` to `z`, `@` and `#`. |
 | `.`        | Matches any character.                                                      |
 | `\d`       | Digits `[0-9]`.                                                             |
 | `\D`       | Not digits `[^0-9]`.                                                        |

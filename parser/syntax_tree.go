@@ -4,13 +4,6 @@ import (
 	"strconv"
 )
 
-// TreeRetention defines whether a language element is kept in the SyntaxTree
-// and where it is positioned. It has 3 values:
-//  1. Retain: kept in the syntax tree at the default position;
-//  2. Drop: not kept in the syntax tree;
-//  3. Promote: the language element is promoted to the parent position in the tree.
-type TreeRetention int
-
 const (
 	Drop TreeRetention = iota
 	Retain
@@ -18,6 +11,13 @@ const (
 	Promote1
 	Promote2
 )
+
+// TreeRetention defines whether a language element is kept in the SyntaxTree
+// and where it is positioned. It has 3 values:
+//  1. Retain: kept in the syntax tree at the default position;
+//  2. Drop: not kept in the syntax tree;
+//  3. Promote: the language element is promoted to the parent position in the tree.
+type TreeRetention int
 
 type SyntaxTree struct {
 	Node     LanguageElement

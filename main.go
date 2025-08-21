@@ -5,7 +5,7 @@ import (
 )
 
 func main() {
-	var r regex.CompiledRegex
+	var r *regex.CompiledRegex
 
 	r = regex.NewRegex("a")
 	println(r.Regex.Pattern())

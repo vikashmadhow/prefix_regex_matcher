@@ -99,8 +99,12 @@ func NewRegex(input string) *CompiledRegex {
 	parser := parser{[]rune(input), 0, &group, groups}
 	r := parser.regex(&modifier{caseInsensitive: false, unicode: false})
 	n := r.nfa()
-	d := dfa(n)
+	d := n.dfa()
 	return &CompiledRegex{r, n, d}
+}
+
+func (r *CompiledRegex) Matcher() *Matcher {
+	return &Matcher{Start, "", map[int]string{}, r, r.Dfa.start}
 }
 
 func (r *CompiledRegex) Match(input string) bool {
@@ -167,12 +171,12 @@ func (c *choice) nfa() *automata {
 	left := c.left.nfa()
 	right := c.right.nfa()
 
-	merge(&a, left)
-	merge(&a, right)
+	a.merge(left)
+	a.merge(right)
 
-	addTransitions(&a, a.start, map[char]state{&empty{}: left.start, &empty{}: right.start})
-	addTransitions(&a, left.final[0], map[char]state{&empty{}: a.final[0]})
-	addTransitions(&a, right.final[0], map[char]state{&empty{}: a.final[0]})
+	a.addTransitions(a.start, map[char]state{&empty{}: left.start, &empty{}: right.start})
+	a.addTransitions(left.final[0], map[char]state{&empty{}: a.final[0]})
+	a.addTransitions(right.final[0], map[char]state{&empty{}: a.final[0]})
 
 	return &a
 }
@@ -209,12 +213,12 @@ func (s *sequence) nfa() *automata {
 	first := true
 	for _, re := range s.sequence {
 		reAutomata := re.nfa()
-		merge(&a, reAutomata)
+		a.merge(reAutomata)
 		if first {
 			a.start = reAutomata.start
 			first = false
 		} else {
-			addTransitions(&a, a.final[0], map[char]state{&empty{}: reAutomata.start})
+			a.addTransitions(a.final[0], map[char]state{&empty{}: reAutomata.start})
 		}
 		a.final = reAutomata.final
 	}
@@ -237,7 +241,7 @@ func (r *zeroOrOne) Pattern() string {
 //	start --> ... --> final
 func (r *zeroOrOne) nfa() *automata {
 	opt := r.opt.nfa()
-	addTransitions(opt, opt.start, map[char]state{&empty{}: opt.final[0]})
+	opt.addTransitions(opt.start, map[char]state{&empty{}: opt.final[0]})
 	return opt
 }
 
@@ -257,8 +261,8 @@ func (r *zeroOrMore) Pattern() string {
 //	    --------------
 func (r *zeroOrMore) nfa() *automata {
 	re := r.re.nfa()
-	addTransitions(re, re.start, map[char]state{&empty{}: re.final[0]})
-	addTransitions(re, re.final[0], map[char]state{&empty{}: re.start})
+	re.addTransitions(re.start, map[char]state{&empty{}: re.final[0]})
+	re.addTransitions(re.final[0], map[char]state{&empty{}: re.start})
 	return re
 }
 
@@ -275,7 +279,7 @@ func (r *oneOrMore) Pattern() string {
 //	    ---------------
 func (r *oneOrMore) nfa() *automata {
 	re := r.re.nfa()
-	addTransitions(re, re.final[0], map[char]state{&empty{}: re.start})
+	re.addTransitions(re.final[0], map[char]state{&empty{}: re.start})
 	return re
 }
 
@@ -321,26 +325,26 @@ func (r *repeat) nfa() *automata {
 	if r.max > r.min {
 		if r.max == 255 {
 			re := r.re.nfa()
-			merge(a, re)
-			addTransitions(a, re.start, map[char]state{&empty{}: re.final[0]})
-			addTransitions(a, re.final[0], map[char]state{&empty{}: re.start})
+			a.merge(re)
+			a.addTransitions(re.start, map[char]state{&empty{}: re.final[0]})
+			a.addTransitions(re.final[0], map[char]state{&empty{}: re.start})
 			if first {
 				a.start = re.start
 				first = false
 			} else {
-				addTransitions(a, a.final[0], map[char]state{&empty{}: re.start})
+				a.addTransitions(a.final[0], map[char]state{&empty{}: re.start})
 			}
 			a.final = re.final
 		} else {
 			for i := r.min; i < r.max; i++ {
 				re := r.re.nfa()
-				merge(a, re)
-				addTransitions(a, re.start, map[char]state{&empty{}: re.final[0]})
+				a.merge(re)
+				a.addTransitions(re.start, map[char]state{&empty{}: re.final[0]})
 				if first {
 					a.start = re.start
 					first = false
 				} else {
-					addTransitions(a, a.final[0], map[char]state{&empty{}: re.start})
+					a.addTransitions(a.final[0], map[char]state{&empty{}: re.start})
 				}
 				a.final = re.final
 			}

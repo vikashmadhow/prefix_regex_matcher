@@ -44,7 +44,7 @@ type Pair[A, B any] struct {
 type FlatMapFunc[U, V any] func(U) []V
 
 // FlatMap2Func is a function provided to seq.FlatMap2 to transform a key-value pair of type (K, V)
-// to a sequence of type (Mk, MV) ([]seq.KeyPair[MK, MV], to be exact). The sequence is then flattened
+// to a sequence of type (MK, MV) ([]seq.KeyPair[MK, MV], to be exact). The sequence is then flattened
 // into a Seq2[MK, MV].
 type FlatMap2Func[K, V, MK, MV any] func(K, V) []Pair[MK, MV]
 

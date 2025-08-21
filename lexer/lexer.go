@@ -6,43 +6,31 @@ package lexer
 import (
 	"bufio"
 	"errors"
-	"github.com/vikashmadhow/prefix_regex_matcher/regex"
-	"github.com/vikashmadhow/prefix_regex_matcher/seq"
 	"io"
 	"iter"
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/vikashmadhow/prefix_regex_matcher/regex"
+	"github.com/vikashmadhow/prefix_regex_matcher/seq"
 )
 
 type Lexer struct {
 	Definition []*TokenType
 	TokenTypes map[string]*TokenType
-	matchers   []*tokenMatcher
+	matchers   []*TokenMatcher
 	modulators []Modulator
 	bufferSize int
 }
 
-type tokenMatcher struct {
-	def     *TokenType
-	matcher *regex.Matcher
-}
-
-func SimpleTokenType(id string) *TokenType {
-	return NewTokenType(id, regex.Escape(id))
-}
-
-func NewTokenType(id string, pattern string) *TokenType {
-	return &TokenType{id, pattern, regex.NewRegex(pattern)}
-}
-
 func New(definition ...*TokenType) *Lexer {
-	var matchers []*tokenMatcher
+	var matchers []*TokenMatcher
 	for _, d := range definition {
 		if d.Compiled == nil {
 			d.Compiled = regex.NewRegex(d.Pattern)
 		}
-		matchers = append(matchers, &tokenMatcher{d, d.Compiled.Matcher()})
+		matchers = append(matchers, &TokenMatcher{d, d.Compiled.Matcher()})
 	}
 	tokenTypes := make(map[string]*TokenType)
 	for _, d := range definition {
@@ -97,8 +85,8 @@ func (lexer *Lexer) lex(in io.Reader) iter.Seq2[Token, error] {
 
 	return func(yield func(t Token, e error) bool) {
 		var matching int
-		var previousMatches []*tokenMatcher
-		var previousPartialMatches []*tokenMatcher
+		var previousMatches []*TokenMatcher
+		var previousPartialMatches []*TokenMatcher
 
 		start := 0
 		bufferSize := lexer.bufferSize
@@ -163,7 +151,7 @@ func (lexer *Lexer) lex(in io.Reader) iter.Seq2[Token, error] {
 	}
 }
 
-func fillPrevious(m *tokenMatcher, previousMatches *[]*tokenMatcher, previousPartialMatches *[]*tokenMatcher) {
+func fillPrevious(m *TokenMatcher, previousMatches *[]*TokenMatcher, previousPartialMatches *[]*TokenMatcher) {
 	if m.matcher.LastMatch == regex.FullMatch {
 		*previousMatches = append(*previousMatches, m)
 	} else if m.matcher.LastMatch == regex.PartialMatch {
@@ -172,8 +160,8 @@ func fillPrevious(m *tokenMatcher, previousMatches *[]*tokenMatcher, previousPar
 }
 
 func (lexer *Lexer) produceToken(
-	previousMatches []*tokenMatcher,
-	previousPartialMatches []*tokenMatcher,
+	previousMatches []*TokenMatcher,
+	previousPartialMatches []*TokenMatcher,
 	line int, column int) (Token, error) {
 	var token Token
 	var err error

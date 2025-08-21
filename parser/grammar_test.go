@@ -2,8 +2,9 @@ package grammar
 
 import (
 	"fmt"
-	"github.com/vikashmadhow/prefix_regex_matcher/lexer"
 	"testing"
+
+	"github.com/vikashmadhow/prefix_regex_matcher/lexer"
 )
 
 // Seq[characters] -> Lexer -> Seq[Token] -> Modulator... -> Seq[Token] -> Syntax Analyser -> ST -> Semantic Processors... -> AT -> Translators... -> Translation
