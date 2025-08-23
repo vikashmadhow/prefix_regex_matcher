@@ -9,9 +9,15 @@ package regex
 
 import (
 	"container/list"
+	"embed"
 	"math"
+	"math/rand"
+	"strings"
 	"unicode"
 )
+
+//go:embed lists/*
+var lists embed.FS
 
 // -------------Character and character sets parsing-------------//
 type (
@@ -23,6 +29,8 @@ type (
 
 		// spanSet returns the range of characters that can be matched by this char.
 		spanSet() spanSet
+
+		random() string
 
 		Regex
 	}
@@ -53,6 +61,15 @@ type (
 		sets    list.List // [char]
 		group   list.List // [int]
 	}
+
+	// Matches with a list of strings. This is only used for random generation
+	// from the list of strings.
+	inList struct {
+		mod   *modifier
+		list  string
+		words []string
+		group list.List // [int]
+	}
 )
 
 //------------- The empty character -------------//
@@ -81,6 +98,10 @@ func (c *empty) match(rune) bool {
 
 func (c *empty) spanSet() spanSet {
 	return nil
+}
+
+func (c *empty) random() string {
+	return ""
 }
 
 //------------- Any character -------------//
@@ -116,6 +137,10 @@ func (c *anyChar) spanSet() spanSet {
 	} else {
 		return asciiPrintable
 	}
+}
+
+func (c *anyChar) random() string {
+	return string(c.spanSet().random())
 }
 
 //------------- A single character match -------------//
@@ -163,6 +188,10 @@ func (c *singleChar) spanSet() spanSet {
 	return spanSet{
 		{c.char, c.char},
 	}
+}
+
+func (c *singleChar) random() string {
+	return string(c.spanSet().random())
 }
 
 //------------- A character range match -------------//
@@ -228,6 +257,10 @@ func (c *charRange) spanSet() spanSet {
 	return spanSet{
 		{c.from, c.to},
 	}
+}
+
+func (c *charRange) random() string {
+	return string(c.spanSet().random())
 }
 
 //------------- A character set combines different characters (and ranges) -------------//
@@ -298,4 +331,53 @@ func (c *charSet) spanSet() spanSet {
 	} else {
 		return span.compact()
 	}
+}
+
+func (c *charSet) random() string {
+	return string(c.spanSet().random())
+}
+
+//----------------- In list ----------------//
+
+func (c *inList) Pattern() string {
+	return "(:" + c.list + ")"
+}
+
+func (c *inList) isEmpty() bool {
+	return false
+}
+
+func (c *inList) groups() *list.List {
+	return &c.group
+}
+
+func (c *inList) setGroups(g *list.List) {
+	c.group = *g
+}
+
+func (c *inList) nfa() *automata {
+	return charNfa(c)
+}
+
+func (c *inList) match(char rune) bool {
+	return false
+}
+
+func (c *inList) spanSet() spanSet {
+	return nil
+}
+
+func (c *inList) random() string {
+	if c.words == nil {
+		bytes, err := lists.ReadFile("lists/" + c.list)
+		if err != nil {
+			panic(err)
+		}
+		content := string(bytes)
+		c.words = strings.Split(content, "\n")
+		for i, w := range c.words {
+			c.words[i] = strings.TrimSpace(w)
+		}
+	}
+	return c.words[rand.Intn(len(c.words))]
 }

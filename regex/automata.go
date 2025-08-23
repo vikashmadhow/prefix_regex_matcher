@@ -36,7 +36,7 @@ func (auto *automata) dfa() *automata {
 	dfaStates := map[state]set[state]{}
 	explored := make(chan set[state], 1000)
 	reachable := &set[state]{}
-	eClosure(auto.Trans, auto.start, reachable)
+	eClosure(auto.start, auto.Trans, reachable)
 	explored <- *reachable
 
 	dfa.start = &stateObj{}
@@ -76,7 +76,7 @@ func (auto *automata) dfa() *automata {
 				for s := range dfaState {
 					trans := auto.Trans[s]
 					if t, ok := trans[c]; ok {
-						eClosure(auto.Trans, t, reachable)
+						eClosure(t, auto.Trans, reachable)
 					}
 				}
 			}
@@ -180,11 +180,11 @@ func (auto *automata) ToGraphViz(title string) string {
 	return spec
 }
 
-func eClosure(trans transitions, s state, closure *set[state]) {
-	(*closure)[s] = true
-	for c, t := range trans[s] {
-		if c.isEmpty() && !(*closure)[t] {
-			eClosure(trans, t, closure)
+func eClosure(from state, trans transitions, closure *set[state]) {
+	(*closure)[from] = true
+	for ch, to := range trans[from] {
+		if ch.isEmpty() && !(*closure)[to] {
+			eClosure(to, trans, closure)
 		}
 	}
 }

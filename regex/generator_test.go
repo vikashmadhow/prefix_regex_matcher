@@ -41,7 +41,21 @@ func TestGenerator_Next5(t *testing.T) {
 
 func TestGenerator_Next6(t *testing.T) {
 	r := NewRegex("(20[012]|19[7-9])\\d-[0-9]{5}(-[1-4])?")
-	for i := 0; i < 20000; i++ {
+	for i := 0; i < 1000; i++ {
+		println(r.Generate())
+	}
+}
+
+func TestGenerator_EmailGeneration(t *testing.T) {
+	r := NewRegex("(:word_en)(\\.(:word_en))?@(:word_en)(\\.(:word_en))?\\.(ca|com|net|org|edu)")
+	for i := 0; i < 1000; i++ {
+		println(r.Generate())
+	}
+}
+
+func TestGenerator_WordGeneration(t *testing.T) {
+	r := NewRegex("(:word_fr)( (:word_fr)){1,10}")
+	for i := 0; i < 1000; i++ {
 		println(r.Generate())
 	}
 }

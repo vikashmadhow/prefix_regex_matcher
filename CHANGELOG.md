@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.4.0] - 2025-08-23
+- `(:list)` syntax in regular expression for generating random words from the given list.
+- Embedded sanitized list of english and french words (word_en, word_fr).
+
 ## [0.3.3] - 2025-08-21
 - Improved matching code in span, spanSet, and charSet.
 

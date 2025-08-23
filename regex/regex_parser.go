@@ -163,11 +163,13 @@ func (r *parser) base(mod *modifier) Regex {
 		if r.peek() == '?' {
 			// modifiers
 			r.next()
-			switch r.next() {
-			case 'i':
-				mod.caseInsensitive = true
-			case 'u':
-				mod.unicode = true
+			if r.hasMore() {
+				switch r.next() {
+				case 'i':
+					mod.caseInsensitive = true
+				case 'u':
+					mod.unicode = true
+				}
 			}
 
 			// lenient parsing: don't break if no closing bracket, read to the end
@@ -175,6 +177,20 @@ func (r *parser) base(mod *modifier) Regex {
 				r.next()
 			}
 			return nil
+		} else if r.peek() == ':' {
+			// list
+			r.next()
+			var list strings.Builder
+			for r.hasMore() && r.peek() != ')' {
+				list.WriteRune(r.next())
+			}
+			if r.hasMore() {
+				r.next()
+			}
+			return &inList{
+				mod: mod,
+				list: list.String(),
+			}
 		} else {
 			*r.group++
 			r.groups.PushBack(*r.group)

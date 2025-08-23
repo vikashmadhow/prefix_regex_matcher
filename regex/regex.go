@@ -137,7 +137,8 @@ func (r *CompiledRegex) Generate() string {
 		} else {
 			t := slices.Collect(maps.Keys(trans))
 			c := t[n]
-			s.WriteRune(c.spanSet().random())
+			s.WriteString(c.random())
+			//s.WriteRune(c.spanSet().random())
 			state = trans[c]
 		}
 		trans = r.Dfa.Trans[state]
